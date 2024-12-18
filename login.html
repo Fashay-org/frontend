@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fashay - Fashion AI at your fingertips</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Styling remains the same */
+        body { font-family: 'Inter', sans-serif; background-color: white; }
+        .fashay {font-family: 'Dancing Script', cursive; font-size: 2.5rem; font-weight: 700;}
+        .gradient-text { background: linear-gradient(90deg, #5B87FF, #66D59E); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .input-focus { transition: all 0.3s ease; }
+        .input-focus:focus { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .button-shine { position: relative; overflow: hidden; }
+        .button-shine::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(transparent, rgba(255, 255, 255, 0.1), transparent); transform: rotate(45deg); transition: 0.5s; }
+        .button-shine:hover::after { left: 100%; }
+        #messageContainer {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+        
+        #messageContainer > * {
+            pointer-events: auto;
+        }
+    </style>
+</head> 
+
+<body class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div id="messageContainer"></div>
+    <div class="w-full max-w-md px-8 py-10 bg-white rounded-2xl shadow-lg fade-in">
+        <div class="text-center mb-10">
+            <a href="/" class="inline-block">
+                <h1 class="text-4xl font-bold mb-3 hover:opacity-80 transition-opacity">
+                    <span class="fashay">fashay</span>
+                </h1>
+            </a>
+            <p class="text-gray-600">Fashion AI at your fingertips</p>
+        </div>
+
+        <form id="authForm" class="space-y-6">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email address</label>
+                <input type="email" id="email" name="email" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="you@example.com" required>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <button type="button" id="forgotPasswordBtn" class="text-sm text-gray-600 hover:text-black transition-colors">Forgot password?</button>
+                </div>
+                <input type="password" id="password" name="password" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="••••••••" required>
+            </div>
+
+            <div id="confirmPasswordDiv" class="hidden">
+                <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="••••••••">
+            </div>
+
+            <button type="submit" id="submitButton" class="button-shine w-full bg-black text-white py-3 px-4 rounded-xl hover:bg-gray-800 transition duration-300 shadow-md hover:shadow-lg">Sign in</button>
+            
+            <div id="verificationCodeDiv" class="hidden">
+                <label for="verification_code" class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                <input type="text" id="verification_code" name="verification_code" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="Enter code here">
+                <button type="button" id="verifyButton" class="button-shine w-full bg-blue-500 text-white py-3 px-4 mt-4 rounded-xl hover:bg-blue-600 transition duration-300 shadow-md hover:shadow-lg">Verify</button>
+            </div>
+
+            <div class="text-center mt-6">
+                <p class="text-gray-600">
+                    <span id="authToggleText">Don't have an account?</span>
+                    <a href="#" id="authToggle" class="text-black font-semibold hover:underline">Sign up</a>
+                </p>
+            </div>
+        </form>
+        <!-- Forgot Password Form -->
+        <form id="forgotPasswordForm" class="hidden space-y-6">
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-semibold">Forgot Password</h2>
+                <p class="text-sm text-gray-600 mt-1">Enter your email to receive a verification code</p>
+            </div>
+
+            <div>
+                <label for="forgotEmail" class="block text-sm font-medium text-gray-700 mb-2">Email address</label>
+                <input type="email" id="forgotEmail" name="forgotEmail" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="you@example.com" required>
+            </div>
+
+            <div id="forgotCodeDiv" class="hidden">
+                <label for="forgotCode" class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                <input type="text" id="forgotCode" name="forgotCode" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="Enter verification code">
+            </div>
+
+            <div id="forgotNewPasswordDiv" class="hidden">
+                <label for="forgotNewPassword" class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                <input type="password" id="forgotNewPassword" name="forgotNewPassword" class="input-focus w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent" placeholder="••••••••">
+            </div>
+
+            <button type="submit" id="forgotSubmitButton" class="button-shine w-full bg-black text-white py-3 px-4 rounded-xl hover:bg-gray-800 transition duration-300 shadow-md hover:shadow-lg">Send Verification Code</button>
+            
+            <button type="button" id="backToLoginBtn" class="w-full text-gray-600 hover:text-black transition-colors">Back to Login</button>
+        </form>
+        <div id="error-message" class="hidden mt-4 p-4 bg-red-50 border border-red-100 text-red-500 text-sm rounded-xl text-center"></div>
+    </div>
+
+    <script>
+
+        let isSignUp = false;
+        let isForgotPassword = false;
+        const authForm = document.getElementById('authForm');
+        const authToggle = document.getElementById('authToggle');
+        const authToggleText = document.getElementById('authToggleText');
+        const confirmPasswordDiv = document.getElementById('confirmPasswordDiv');
+        const submitButton = document.getElementById('submitButton');
+        const errorElement = document.getElementById('error-message');
+        const verificationCodeDiv = document.getElementById('verificationCodeDiv');
+        const verifyButton = document.getElementById('verifyButton');
+        const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+        const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+        const backToLoginBtn = document.getElementById('backToLoginBtn');
+        const forgotCodeDiv = document.getElementById('forgotCodeDiv');
+        const forgotNewPasswordDiv = document.getElementById('forgotNewPasswordDiv');
+        const forgotSubmitButton = document.getElementById('forgotSubmitButton');
+
+
+
+
+        const messageContainer = document.getElementById('messageContainer');
+
+        // Message system functions
+        const showMessage = (message, type = 'default') => {
+            // Create alert element
+            const alertElement = document.createElement('div');
+            alertElement.className = `flex items-start max-w-sm bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 p-4 transform transition-all duration-300 ${
+                type === 'success' ? 'border-l-green-500' :
+                type === 'error' ? 'border-l-red-500' :
+                type === 'warning' ? 'border-l-yellow-500' :
+                'border-l-gray-500'
+            }`;
+            
+            // Set initial state for animation
+            alertElement.style.opacity = '0';
+            alertElement.style.transform = 'translateX(100%)';
+            
+            // Create content
+            alertElement.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0">
+                        ${type === 'success' ? `
+                            <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                            </svg>
+                        ` : type === 'error' ? `
+                            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                            </svg>
+                        ` : type === 'warning' ? `
+                            <svg class="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                        ` : `
+                            <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                        `}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-gray-900 dark:text-gray-100">${message}</p>
+                    </div>
+                    <button class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-500 focus:outline-none" onclick="dismissMessage(this.parentElement.parentElement)">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Add to container
+            messageContainer.appendChild(alertElement);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                alertElement.style.opacity = '1';
+                alertElement.style.transform = 'translateX(0)';
+            });
+            
+            // Auto dismiss after 8 seconds
+            const dismissTimer = setTimeout(() => {
+                dismissMessage(alertElement);
+            }, 8000);
+            
+            // Store the timer ID on the element
+            alertElement.dataset.dismissTimer = dismissTimer;
+        };
+
+        const dismissMessage = (element) => {
+            // Clear the dismiss timer
+            if (element.dataset.dismissTimer) {
+                clearTimeout(element.dataset.dismissTimer);
+            }
+            
+            // Animate out
+            element.style.opacity = '0';
+            element.style.transform = 'translateX(100%)';
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (element.parentElement) {
+                    element.parentElement.removeChild(element);
+                }
+            }, 300);
+        };
+
+        authToggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            toggleAuthMode();
+        });
+        function validatePassword(password) {
+            const conditions = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                number: /[0-9]/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+            };
+            
+            const errors = [];
+            if (!conditions.length) errors.push("Password must be at least 8 characters long");
+            if (!conditions.uppercase) errors.push("Password must contain at least one uppercase letter");
+            if (!conditions.lowercase) errors.push("Password must contain at least one lowercase letter");
+            if (!conditions.number) errors.push("Password must contain at least one number");
+            if (!conditions.special) errors.push("Password must contain at least one special character");
+            
+            return {
+                isValid: Object.values(conditions).every(condition => condition),
+                errors: errors
+            };
+        }
+        function toggleAuthMode() {
+            isSignUp = !isSignUp;
+            if (isSignUp) {
+                authToggleText.textContent = "Already have an account?";
+                authToggle.textContent = "Sign in";
+                confirmPasswordDiv.classList.remove('hidden');
+                submitButton.textContent = "Sign up";
+            } else {
+                authToggleText.textContent = "Don't have an account?";
+                authToggle.textContent = "Sign up";
+                confirmPasswordDiv.classList.add('hidden');
+                submitButton.textContent = "Sign in";
+            }
+        }
+
+        authForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            errorElement.classList.add('hidden');
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (isSignUp) {
+                // Add password validation for signup
+                const validation = validatePassword(password);
+                if (!validation.isValid) {
+                    errorElement.innerHTML = validation.errors.join('<br>');
+                    errorElement.classList.remove('hidden');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    errorElement.textContent = 'Passwords do not match';
+                    errorElement.classList.remove('hidden');
+                    return;
+                }
+            }
+            try {
+                const endpoint = isSignUp ? '/signup' : '/login';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        email: email,
+                        password: password,
+                        ...(isSignUp && { confirm_password: confirmPassword })
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && isSignUp) {
+                    // Show verification input field after signup
+                    verificationCodeDiv.classList.remove('hidden');
+                    submitButton.classList.add('hidden');
+                    errorElement.textContent = 'Check your email for the verification code.';
+                    errorElement.classList.remove('hidden');
+                } else if (response.ok) {
+                    // Store credentials in local storage
+                    localStorage.setItem('wardrobeEmail', email);
+                    localStorage.setItem('wardrobePassword', password);
+                    // For successful login, create and submit form to /view endpoint
+                    const viewForm = document.createElement('form');
+                    viewForm.method = 'POST';
+                    viewForm.action = '/view';
+                    
+                    // Add email field
+                    const emailInput = document.createElement('input');
+                    emailInput.type = 'hidden';
+                    emailInput.name = 'email';
+                    emailInput.value = email;
+                    viewForm.appendChild(emailInput);
+                    
+                    // Add password field
+                    const passwordInput = document.createElement('input');
+                    passwordInput.type = 'hidden';
+                    passwordInput.name = 'password';
+                    passwordInput.value = password;
+                    viewForm.appendChild(passwordInput);
+                    
+                    // Submit form to redirect to view.html
+                    document.body.appendChild(viewForm);
+                    viewForm.submit();
+                } else {
+                    throw new Error(result.message || 'An error occurred');
+                }
+            } catch (error) {
+                errorElement.textContent = error.message;
+                errorElement.classList.remove('hidden');
+            }
+        });
+
+        verifyButton.addEventListener('click', async function () {
+            const verificationCode = document.getElementById('verification_code').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            console.log('Before verification - Email:', email); // Debug log
+            if (!verificationCode) {
+                errorElement.textContent = 'Please enter the verification code';
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ 
+                        verification_code: verificationCode,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    // After successful verification, redirect to view.html
+                    console.log('Storing credentials - Email:', email); // Debug log
+                    localStorage.clear(); // Clear any existing data
+                    localStorage.setItem('wardrobeEmail', result.email);
+                    localStorage.setItem('wardrobePassword', result.password);
+                    console.log('Stored email:', localStorage.getItem('wardrobeEmail')); // Debug log
+
+                    // Store credentials in localStorage before redirecting
+                    const viewForm = document.createElement('form');
+                    viewForm.method = 'POST';
+                    viewForm.action = '/view';
+                    
+                    const emailInput = document.createElement('input');
+                    emailInput.type = 'hidden';
+                    emailInput.name = 'email';
+                    emailInput.value = email;
+                    viewForm.appendChild(emailInput);
+                    
+                    const passwordInput = document.createElement('input');
+                    passwordInput.type = 'hidden';
+                    passwordInput.name = 'password';
+                    passwordInput.value = password;
+                    viewForm.appendChild(passwordInput);
+                    
+                    document.body.appendChild(viewForm);
+                    viewForm.submit();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                errorElement.textContent = error.message;
+                errorElement.classList.remove('hidden');
+            }
+        });
+        // Toggle forgot password form
+        forgotPasswordBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            isForgotPassword = true;
+            authForm.classList.add('hidden');
+            forgotPasswordForm.classList.remove('hidden');
+            errorElement.classList.add('hidden');
+        });
+
+        // Back to login button
+        backToLoginBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            isForgotPassword = false;
+            forgotPasswordForm.classList.add('hidden');
+            authForm.classList.remove('hidden');
+            forgotCodeDiv.classList.add('hidden');
+            forgotNewPasswordDiv.classList.add('hidden');
+            forgotSubmitButton.textContent = 'Send Verification Code';
+            errorElement.classList.add('hidden');
+        });
+
+        // Handle forgot password form submission
+        forgotPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('forgotEmail').value;
+            const forgotCode = document.getElementById('forgotCode').value;
+            const newPassword = document.getElementById('forgotNewPassword').value;
+
+            try {
+                if (!forgotCodeDiv.classList.contains('hidden')) {
+                    // Verify code and set new password
+                    const response = await fetch('/reset-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            email: email,
+                            reset_code: forgotCode,
+                            new_password: newPassword
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        showMessage('Password updated successfully! Please login with your new password.', 'success');
+                        backToLoginBtn.click();
+                    } else {
+                        showMessage(result.message || 'Failed to update password', 'error');
+                    }
+                } else {
+                    // Request verification code
+                    const response = await fetch('/forgot-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ email: email })
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        forgotCodeDiv.classList.remove('hidden');
+                        forgotNewPasswordDiv.classList.remove('hidden');
+                        forgotSubmitButton.textContent = 'Update Password';
+                        showMessage('Check your email for the verification code', 'success');
+                    } else {
+                        showMessage(result.message || 'Failed to send verification code', 'error');
+                    }
+                }
+            } catch (error) {
+                showMessage(error.message || 'An error occurred', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

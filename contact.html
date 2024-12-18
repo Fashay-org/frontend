@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Contact Us - Fashay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/frontend/view.css">
+</head>
+
+<body class="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- Navigation -->
+    <nav class="w-full fixed top-0 bg-white/90 backdrop-blur-md z-50 border-b safe-top">
+        <div class="max-w-7xl mx-auto flex justify-between items-center p-4 sm:px-6 lg:px-8">
+            <a class="fashay">fashay</a>
+            <!-- Desktop Navigation -->
+            <div class="hidden sm:flex items-center gap-4 sm:gap-8">
+                <a href="#" class="nav-link">Wardrobe</a>
+                <a href="/contact" class="nav-link">Contact Us</a>
+                <a href="#" onclick="handleLogout(event)" class="btn-primary">Logout</a>
+            </div>
+            <!-- Mobile menu button -->
+            <button id="mobileMenuBtn" class="sm:hidden mobile-menu-btn p-2" aria-expanded="false" aria-controls="mobileMenu">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+    <form id="view-form" action="/view" method="post" class="hidden">
+        <input type="hidden" name="email" id="view-email">
+        <input type="hidden" name="password" id="view-password">
+    </form>
+    <!-- Mobile menu -->
+    <div id="mobileMenu" class="mobile-menu hidden sm:hidden">
+        <div class="mobile-menu-content">
+            <a href="/" class="mobile-menu-item">Wardrobe</a>
+            <a href="/contact" class="mobile-menu-item">Contact Us</a>
+            <a href="#" onclick="handleLogout(event)" class="mobile-menu-item btn-primary">Logout</a>
+        </div>
+    </div>
+
+    <!-- Contact Section -->
+    <div class="flex-1 flex flex-col items-center px-4 sm:px-6 lg:px-8 mt-24 mb-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Contact Us
+            </h1>
+            <p class="mt-2 text-gray-600">We'd love to hear from you!</p>
+            <div class="mt-4 text-gray-700">
+                <p>Email us at: <a href="mailto:contact@thefashay.com" class="text-blue-600 hover:text-blue-800">contact@thefashay.com</a></p>
+            </div>
+        </div>
+
+        <!-- Google Form Container with responsive sizing -->
+        <div class="w-full max-w-3xl">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Feedback Form</h2>
+            <div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                <iframe 
+                    src="https://forms.gle/qUtTSUnsNi8nWTdB9" 
+                    class="w-full h-[800px] border-0"
+                    frameborder="0" 
+                    marginheight="0" 
+                    marginwidth="0">
+                    Loading…
+                </iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to handle wardrobe form submission
+        function submitWardrobeForm() {
+            const email = localStorage.getItem('wardrobeEmail');
+            const password = localStorage.getItem('wardrobePassword');
+            if (email && password) {
+                document.getElementById('view-email').value = email;
+                document.getElementById('view-password').value = password;
+                document.getElementById('view-form').submit();
+            } else {
+                alert("Please log in to access your wardrobe.");
+            }
+        }
+    
+        // Improved mobile menu toggle functionality
+        function initializeMobileMenu() {
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            
+            if (!menuBtn || !mobileMenu) {
+                console.log('Menu elements not found');
+                return;
+            }
+    
+            function toggleMenu(event) {
+                event.stopPropagation();
+                mobileMenu.classList.toggle('hidden');
+                menuBtn.classList.toggle('active');
+                
+                if (!mobileMenu.classList.contains('hidden')) {
+                    setTimeout(() => {
+                        mobileMenu.classList.add('active');
+                    }, 10);
+                } else {
+                    mobileMenu.classList.remove('active');
+                }
+            }
+    
+            document.addEventListener('click', (event) => {
+                if (!mobileMenu.classList.contains('hidden') &&
+                    !menuBtn.contains(event.target) &&
+                    !mobileMenu.contains(event.target)) {
+                    toggleMenu(event);
+                }
+            });
+    
+            mobileMenu.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+    
+            menuBtn.addEventListener('click', toggleMenu);
+    
+            const menuItems = mobileMenu.querySelectorAll('a');
+            menuItems.forEach(item => {
+                item.addEventListener('click', (event) => {
+                    toggleMenu(event);
+                });
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 640 && !mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                    mobileMenu.classList.remove('active');
+                    menuBtn.classList.remove('active');
+                }
+            });
+        }
+
+        // Function to handle logout
+        function handleLogout(event) {
+            event.preventDefault();
+            localStorage.clear();
+            window.location.href = '/';
+        }
+    
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMobileMenu();
+            
+            document.querySelectorAll('a').forEach(link => {
+                if (link.textContent.trim() === 'Wardrobe') {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        submitWardrobeForm();
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

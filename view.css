@@ -1,0 +1,871 @@
+/* Base Styles */
+:root {
+    --max-width: 1440px;
+    --nav-height: clamp(3.5rem, 4vw, 4rem);
+    --spacing-sm: clamp(0.5rem, 1vw, 1rem);
+    --spacing-md: clamp(1rem, 2vw, 2rem);
+    --spacing-lg: clamp(2rem, 4vw, 4rem);
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #fcfcfd;
+    color: #111827;
+    min-height: 100vh;
+    width: 100vw;
+    overflow-x: hidden;
+}
+
+/* Typography */
+.fashay {font-family: 'Dancing Script', cursive; font-size: 2.5rem; font-weight: 700;}
+/* Mobile Menu Styles */
+.mobile-menu {
+    display: none;
+    position: fixed;
+    top: 72px; /* Adjust based on your nav height */
+    left: 0;
+    right: 0;
+    background-color: white;
+    z-index: 49;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-menu.active {
+    display: block;
+    transform: translateY(0);
+}
+
+.mobile-menu-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mobile-menu-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    color: #4B5563;
+    transition: all 0.2s ease;
+    border-radius: 0.5rem;
+}
+
+.mobile-menu-item:hover {
+    background-color: #F3F4F6;
+    color: #111827;
+}
+
+.mobile-menu-item.btn-primary {
+    background-color: #000;
+    color: white;
+    text-align: center;
+    margin: 0.5rem 0;
+}
+.mobile-menu-item.btn-primary:hover {
+    background-color: #1a1a1a;
+}
+/* Mobile Menu Button Styles */
+.mobile-menu-btn {
+    padding: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.mobile-menu-btn.active svg {
+    transform: rotate(90deg);
+}
+
+@media (min-width: 640px) {
+    .mobile-menu, 
+    .mobile-menu-btn {
+        display: none;
+    }
+}
+
+.page-title {
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: bold;
+    background: linear-gradient(to right, #111827, #4B5563);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.page-subtitle {
+    font-size: clamp(0.875rem, 1.5vw, 1rem);
+    color: #6B7280;
+}
+
+/* Navigation */
+.nav-link {
+    font-size: clamp(0.875rem, 1.2vw, 1rem);
+    font-weight: 500;
+    color: #4B5563;
+    transition: color 0.2s;
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background-color: #000;
+    transition: width 0.3s;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.875rem, 1.2vw, 1rem);
+    font-weight: 500;
+    height: clamp(2.5rem, 3vw, 3rem);
+    padding: 0 clamp(1rem, 2vw, 2rem);
+    background-color: #000;
+    color: #fff;
+    border-radius: 9999px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    transform: scale(1.02);
+    background-color: #1a1a1a;
+}
+
+/* Profile Section */
+.profile-section {
+    margin-top: calc(var(--nav-height) + var(--spacing-lg));
+    display: flex;
+    justify-content: center;
+}
+
+.profile-image-container {
+    position: relative;
+    width: min(40vw, 160px);
+    aspect-ratio: 1;
+}
+
+.profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid white;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Wardrobe Grid */
+.wardrobe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+.wardrobe-item {
+    background: white;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: transform 0.3s;
+}
+
+.wardrobe-item:hover {
+    transform: scale(1.02);
+}
+
+.item-image-container {
+    position: relative;
+    padding-top: 100%;
+}
+
+.item-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Buttons */
+.select-btn, .delete-btn {
+    position: absolute;
+    width: clamp(2rem, 4vw, 2.5rem);
+    height: clamp(2rem, 4vw, 2.5rem);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.select-btn {
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    background: white;
+}
+
+.delete-btn {
+    bottom: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: #EF4444;
+    color: white;
+}
+
+/* Floating Action Button */
+.fab {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom), var(--spacing-md));
+    right: var(--spacing-md);
+    width: clamp(3rem, 6vw, 3.5rem);
+    height: clamp(3rem, 6vw, 3.5rem);
+    background: black;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: transform 0.2s;
+}
+
+.fab:hover {
+    transform: scale(1.1);
+}
+
+.fab-icon {
+    width: 50%;
+    height: 50%;
+}
+
+/* Modals */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    width: min(95vw, 500px);
+    max-height: 90vh;
+    background: white;
+    border-radius: 1rem;
+    overflow-y: auto;
+}
+
+/* Chat Components */
+.chat-modal, .floating-chat {
+    width: min(95vw, 600px);
+    max-height: 90vh;
+    background: white;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Responsive Utilities */
+@media (max-width: 640px) {
+    .mobile-menu {
+        display: block;
+    }
+}
+
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+.fade-in {
+    animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+}
+
+.hover-scale {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-scale:hover {
+    transform: scale(1.02);
+}
+
+.style-assistant-img {
+    width: 150px; /* Adjust width as desired */
+    height: 150px; /* Adjust height as desired */
+    object-fit: cover;
+    border-radius: 15px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    /* Add margin for spacing around the images if needed */
+}
+
+.user-message {
+    background-color: #d1e7dd;
+    align-self: flex-end;
+}
+
+.assistant-message {
+    background-color: #f1f1f1;
+    align-self: flex-start;
+}
+
+.chat-container {
+display: flex;
+flex-direction: column;
+gap: 1rem;
+}
+
+.chat-bubble {
+    max-width: 70%;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+
+#stylelistImage {
+    width: 200px;
+    height: 200px; 
+    border-radius: 20px; 
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3); 
+}
+#selectedGarment img {
+    object-fit: contain;
+    max-width: 100%;
+    border-radius: 0.5rem;
+}
+.nav-link {
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background-color: #000;
+    transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+.message-bubble {
+max-width: 80%;
+padding: 0.75rem 1rem;
+margin-bottom: 0.5rem;
+border-radius: 1rem;
+line-height: 1.4;
+animation: fadeIn 0.3s ease-out;
+word-wrap: break-word;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-message {
+    margin-left: auto;
+    background-color: #000;
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.assistant-message {
+    margin-right: auto;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.typing-bubble {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #f3f4f6;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+}
+.generated-items-scroll {
+scrollbar-width: thin;
+scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.generated-items-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.generated-items-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.generated-items-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.slide-in-right {
+    animation: slideInFromRight 0.5s ease-out forwards;
+}
+
+.upload-area {
+    transition: all 0.2s ease;
+}
+
+.upload-area:hover {
+    transform: translateY(-2px);
+}
+
+.generated-item {
+    flex: 0 0 auto;
+    width: 250px;
+    opacity: 0;
+    transform: translateX(50px);
+}
+
+.generated-item.animate {
+    animation: slideIn 0.5s ease forwards;
+}
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes modal-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Thumbnail animations */
+#caption-thumbnails-container > div {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: thumbnail-appear 0.5s ease-out forwards;
+}
+
+@keyframes thumbnail-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Progress bar animation */
+.progress-bar-inner.animate {
+    animation: progress 2s ease-out forwards;
+}
+
+@keyframes progress {
+    0% {
+        transform: scaleX(0);
+    }
+    100% {
+        transform: scaleX(1);
+    }
+}
+
+/* Processing text fade */
+.processing-text.show {
+    display: block;
+    animation: fade-in 0.3s ease-out forwards;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+/* Add these to your existing styles */
+.profile-image-transition {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes profileImageFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.profile-upload-success {
+    animation: profileImageFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.profile-image-loading {
+    position: relative;
+}
+
+.profile-image-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.profile-image-loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    animation: spin 1s linear infinite;
+    opacity: 0;
+    z-index: 1;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading .profile-image-loading::after,
+.loading .profile-image-loading::before {
+    opacity: 1;
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    position: relative;
+}
+
+.double-bounce1, .double-bounce2 {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: #000;
+    opacity: 0.6;
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: sk-bounce 2.0s infinite ease-in-out;
+}
+
+.double-bounce2 {
+    animation-delay: -1.0s;
+}
+
+@keyframes sk-bounce {
+    0%, 100% { 
+        transform: scale(0);
+    } 
+    50% { 
+        transform: scale(1.0);
+    }
+}
+/* Add these styles for enhanced animations */
+@keyframes messageAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-appear {
+    animation: messageAppear 0.3s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 5px rgba(255,255,255,0.1);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(255,255,255,0.2);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(255,255,255,0.1);
+    }
+}
+
+.pulse-glow {
+    animation: pulseGlow 2s infinite;
+}
+
+/* Smooth scrollbar styling */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 3px;
+}
+
+/* Message bubble animations */
+.message-bubble {
+    position: relative;
+    overflow: hidden;
+}
+
+.message-bubble::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+/* Add this to your existing <style> section */
+    #selectionButton {
+    visibility: visible !important; /* Force visibility */
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#selectionButton.active {
+    transform: scale(1) !important;
+    opacity: 1 !important;
+}
+
+.select-item-btn {
+    opacity: 0.9;
+    transition: all 0.2s ease;
+}
+
+.select-item-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.select-item-btn.selected {
+    background-color: #000;
+    color: white;
+}
+
+
+.select-item-btn {
+    opacity: 1;
+    visibility: visible;
+    z-index: 10;
+}
+
+.select-item-btn:hover {
+    transform: scale(1.05);
+}
+
+.select-item-btn.selected {
+    background-color: #000;
+    color: white;
+}
+
+.select-item-btn.selected svg {
+    color: white;
+}
+@media (max-width: 640px) {
+    .wardrobe-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .item-image-container {
+        height: 200px;
+    }
+
+    .nav-link, .btn-primary {
+        font-size: 14px;
+    }
+
+    .page-title {
+        font-size: 24px;
+    }
+
+    .page-subtitle {
+        font-size: 14px;
+    }
+}
+
+.mobile-menu-enter {
+    transform: translateX(100%);
+}
+
+.mobile-menu-enter-active {
+    transform: translateX(0%);
+    transition: transform 300ms ease-in-out;
+}
+
+.mobile-menu-exit {
+    transform: translateX(0%);
+}
+
+.mobile-menu-exit-active {
+    transform: translateX(100%);
+    transition: transform 300ms ease-in-out;
+}
+@supports(padding: max(0px)) {
+    .safe-bottom {
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+    
+    .mb-safe {
+        margin-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+}
+
+/* Ensure the floating chat doesn't exceed viewport height */
+#floatingChatWindow {
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+}
+
+/* Add padding to body to prevent content from being hidden behind floating elements */
+body {
+    padding-bottom: max(6rem, env(safe-area-inset-bottom, 6rem));
+}
+
+/* Improve scrolling behavior */
+#floatingMessageContainer {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+/* Add smooth scrolling for stylist selection */
+#stylistSelection {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+/* Style the scrollbar for better visibility */
+#stylistSelection::-webkit-scrollbar {
+    width: 6px;
+}
+
+#stylistSelection::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#stylistSelection::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#stylistSelection::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Ensure content stays visible when scrolling */
+#stylistSelection {
+    overscroll-behavior: contain;
+}
