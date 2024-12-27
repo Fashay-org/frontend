@@ -13,22 +13,45 @@ let stylists = [
     {
         id: 'reginald',
         name: 'AI Reginald',
-        image: '/frontend/images/reginald.png',
+        image: '/static/images/reginald.png',
         bio: 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek...'
     },
     {
         id: 'eliza',
         name: 'AI Eliza',
-        image: '/frontend/images/eliza.png',
+        image: '/static/images/eliza.png',
         bio: 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist...'
     },
     {
         id: 'lilia',
         name: 'AI Lilia',
-        image: '/frontend/images/lilia.png',
+        image: '/static/images/lilia.png',
         bio: 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling...'
     }
 ];
+
+// Single function to initialize file input
+function initializeFileInput() {
+    const imageInput = document.getElementById('image');
+    if (!imageInput) return;
+    
+    // Remove any existing listeners
+    const newImageInput = imageInput.cloneNode(true);
+    imageInput.parentNode.replaceChild(newImageInput, imageInput);
+    
+    // Add single event listener
+    newImageInput.addEventListener('change', function(event) {
+        const container = document.getElementById('caption-thumbnails-container');
+        if (container) {
+            // Clear existing content first
+            container.innerHTML = '';
+            currentFiles.clear();
+            
+            displayMultipleThumbnails(container, this.files);
+        }
+    });
+}
+
 // Add listeners when DOM is loaded
 document.addEventListener("DOMContentLoaded", async function() {
     try {
@@ -51,6 +74,8 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
         arrangeStylistsByGender(gender);
         
+        // Initialize file input
+        initializeFileInput();        
         // Initialize floating chat
         await initializeFloatingChat();
         
@@ -64,7 +89,24 @@ document.addEventListener("DOMContentLoaded", async function() {
         console.error("Error in DOMContentLoaded:", error);
     }
 });
+document.addEventListener('DOMContentLoaded', function() {
+    // Form submit listener
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', handleFormSubmit);
+    }
 
+    // File input change listener
+    const imageInput = document.getElementById('image');
+    if (imageInput) {
+        imageInput.addEventListener('change', async function() {
+            await displayMultipleThumbnails(
+                document.getElementById('caption-thumbnails-container'),
+                this.files
+            );
+        });
+    }
+});
 function setupEventListeners() {
     // Upload button
     const uploadButton = document.querySelector('button[onclick="openUploadModal()"]');
@@ -93,13 +135,13 @@ function setupEventListeners() {
         });
     }
 
-    // File input listener
-    const imageInput = document.getElementById('image');
-    if (imageInput) {
-        imageInput.addEventListener('change', function() {
-            displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
-        });
-    }
+    // // File input listener
+    // const imageInput = document.getElementById('image');
+    // if (imageInput) {
+    //     imageInput.addEventListener('change', function() {
+    //         displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
+    //     });
+    // }
 
     // Form submit handler
     const uploadForm = document.getElementById('upload-form');
@@ -241,9 +283,9 @@ async function refreshFloatingStylist() {
         const response = await fetch("/refresh_stylist", {
             method: "POST",
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Type": "application/json"
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 stylist: floatingSelectedStylist.id
@@ -302,9 +344,9 @@ async function updateGenderPreference(gender) {
         const response = await fetch('/update_gender', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 gender: gender
@@ -386,12 +428,19 @@ async function uploadProfilePicture(input) {
                     document.head.appendChild(script);
                 });
             }
+            
             // Fix orientation
             const fixedFile = await fixImageOrientation(file);
-            const formData = new FormData();
-            formData.append('email', localStorage.getItem('wardrobeEmail'));
-            formData.append('password', localStorage.getItem('wardrobePassword'));
-            formData.append('image', fixedFile);
+            const base64File = await fileToBase64(fixedFile);
+            
+            // Create JSON request body with corrected field name
+            const requestBody = {
+                email: localStorage.getItem('wardrobeEmail'),
+                password: localStorage.getItem('wardrobePassword'),
+                image_data: base64File.includes('base64,') ? base64File.split('base64,')[1] : base64File,
+                filename: file.name,  // Changed from file_name to filename
+                content_type: file.type
+            };
 
             // Show loading state with modern spinner
             const profileContainer = document.querySelector('.text-center.fade-in');
@@ -413,7 +462,10 @@ async function uploadProfilePicture(input) {
 
             const response = await fetch('/upload_profile_picture', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
             });
 
             const result = await response.json();
@@ -434,19 +486,28 @@ async function uploadProfilePicture(input) {
             }, 1000);
         }
     }
-}    
+}
+// Update openUploadModal to reinitialize the file input
 function openUploadModal() {
     const modal = document.getElementById('uploadModal');
     const generateButton = document.getElementById('generateButton');
     if (modal && generateButton) {
         modal.classList.remove('hidden');
         generateButton.classList.add('hidden');
+        
         // Reset form
         const form = document.getElementById('upload-form');
         if (form) form.reset();
+        
         // Clear thumbnails
         const container = document.getElementById('caption-thumbnails-container');
-        if (container) container.innerHTML = '';
+        if (container) {
+            container.innerHTML = '';
+            currentFiles.clear();
+        }
+        
+        // Reinitialize file input
+        initializeFileInput();
     }
 }
 
@@ -479,8 +540,16 @@ async function displayMultipleThumbnails(container, files) {
     container.innerHTML = '';
     currentFiles.clear();
     
+    const processedFiles = new Set();
     for (let index = 0; index < files.length; index++) {
         const file = files[index];
+        // Skip if we've already processed this file
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        if (processedFiles.has(fileKey)) {
+            console.log('Skipping duplicate file:', file.name);
+            continue;
+        }
+        processedFiles.add(fileKey);
         try {
             // Fix orientation first
             const fixedFile = await fixImageOrientation(file);
@@ -539,92 +608,261 @@ async function displayMultipleThumbnails(container, files) {
 document.getElementById('image').addEventListener('change', async function() {
     await displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
 });
-
-// Update the form submit handler
-document.getElementById('upload-form')?.addEventListener('submit', async function(event) {
+// Helper function to convert File to base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = reject;
+    });
+}
+// Updated form submit handler for JSON submission
+async function handleFormSubmit(event) {
     event.preventDefault();
     
-    const form = this;
-    const thumbnailsContainer = document.getElementById('caption-thumbnails-container');
-    const visibleThumbnails = thumbnailsContainer.querySelectorAll('[data-file-id]');
-    
-    if (visibleThumbnails.length === 0) {
+    const email = localStorage.getItem('wardrobeEmail');
+    const password = localStorage.getItem('wardrobePassword');
+    const files = Array.from(currentFiles.values());
+
+    if (files.length === 0) {
         showMessage('Please select at least one image', 'error');
         return;
     }
-    
-    form.classList.add('loading');
-    const button = form.querySelector('button[type="submit"]');
-    const originalButtonText = button.textContent;
+
+    const button = event.target.querySelector('button[type="submit"]');
+    const originalText = button.textContent;
     button.textContent = 'Processing...';
-    
+    button.disabled = true;
+
+    const gridContainer = document.querySelector('.grid');
+    const placeholderCards = new Map();
+    const uploadedCards = new Map();
+
     try {
-        const email = localStorage.getItem('wardrobeEmail');
-        const password = localStorage.getItem('wardrobePassword');
-        
-        for (const thumbnail of visibleThumbnails) {
-            const fileId = thumbnail.dataset.fileId;
-            const file = currentFiles.get(fileId);
-            
-            if (!file) continue;
-            
+        // Create placeholders for each image immediately
+        files.forEach(file => {
             const tokenName = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const formData = new FormData();
-            formData.append('email', email);
-            formData.append('password', password);
-            formData.append('token_name', tokenName);
-            formData.append('image', file);
+            const placeholderCard = createLoadingPlaceholder(file, tokenName);
+            gridContainer.insertBefore(placeholderCard, gridContainer.firstChild);
+            placeholderCards.set(tokenName, { card: placeholderCard, file });
+        });
 
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
+        // Process each image sequentially to ensure all captions are generated
+        for (const [tokenName, { card: placeholderCard, file }] of placeholderCards) {
+            try {
+                // Convert file to base64
+                const base64Image = await fileToBase64(file);
 
-            const result = await response.json();
-            
-            if (result.status === 'success') {
-                const gridContainer = document.querySelector('.grid');
-                const newItem = createItemCard({
-                    ...result,
+                // Create request body for this specific image
+                const requestBody = {
+                    email,
+                    password,
                     token_name: tokenName,
-                    unique_id: result.unique_id || tokenName
+                    image: base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image
+                };
+
+                // Upload individual image
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
                 });
-                gridContainer.insertBefore(newItem, gridContainer.firstChild);
-                newItem.classList.add('slide-in-right');
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Upload failed');
+                }
+
+                const uploadResult = await response.json();
+
+                if (uploadResult.status === 'success') {
+                    // Create and add the actual card with animation
+                    const newItem = createItemCard({
+                        token_name: tokenName,
+                        image_url: uploadResult.image_url,
+                        caption: uploadResult.caption,
+                        unique_id: uploadResult.unique_id
+                    });
+
+                    newItem.style.opacity = '0';
+                    newItem.style.transform = 'translateY(20px)';
+                    placeholderCard.replaceWith(newItem);
+
+                    requestAnimationFrame(() => {
+                        newItem.style.transition = 'all 0.3s ease-out';
+                        newItem.style.opacity = '1';
+                        newItem.style.transform = 'translateY(0)';
+                    });
+
+                    uploadedCards.set(tokenName, uploadResult);
+                }
+            } catch (error) {
+                console.error(`Error uploading image with token ${tokenName}:`, error);
+                placeholderCard.remove();
+                showMessage(`Failed to upload image: ${error.message}`, 'error');
             }
         }
-        
-        // Clear form and close modal
-        currentFiles.clear();
-        document.getElementById('image').value = '';
-        thumbnailsContainer.innerHTML = '';
-        closeUploadModal();
-        showMessage(`Successfully uploaded ${visibleThumbnails.length} images`, 'success');
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showMessage('An error occurred during upload', 'error');
-    } finally {
-        form.classList.remove('loading');
-        button.textContent = originalButtonText;
-    }
-});
 
-// Update the createItemCard function to ensure unique IDs are properly set
+        // Show success message based on number of successful uploads
+        const successCount = uploadedCards.size;
+        if (successCount > 0) {
+            showMessage(`Successfully uploaded ${successCount} image${successCount > 1 ? 's' : ''}`, 'success');
+            closeUploadModal();
+        }
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        showMessage(error.message || 'Failed to upload images', 'error');
+        // Remove any remaining placeholders
+        placeholderCards.forEach(({card}) => card.remove());
+    } finally {
+        button.textContent = originalText;
+        button.disabled = false;
+        document.getElementById('image').value = '';
+        currentFiles.clear();
+    }
+}
+
+// Create loading placeholder card
+function createLoadingPlaceholder(file, tokenName) {
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl overflow-hidden shadow-lg hover-scale';
+    div.dataset.token = tokenName;
+    
+    // Create object URL for immediate image preview
+    const imageUrl = URL.createObjectURL(file);
+    
+    div.innerHTML = `
+        <div class="relative">
+            <div class="relative">
+                <img src="${imageUrl}" alt="Uploading..." class="w-full h-72 object-cover filter blur-sm">
+                <div class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+                    <div class="loading-spinner">
+                        <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-5">
+            <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+        </div>
+    `;
+    
+    // Clean up object URL when placeholder is removed
+    div.addEventListener('remove', () => URL.revokeObjectURL(imageUrl));
+    
+    return div;
+}
+// // Update the form submit handler
+// document.getElementById('upload-form')?.addEventListener('submit', async function(event) {
+//     event.preventDefault();
+    
+//     const form = this;
+//     const thumbnailsContainer = document.getElementById('caption-thumbnails-container');
+//     const visibleThumbnails = thumbnailsContainer.querySelectorAll('[data-file-id]');
+    
+//     if (visibleThumbnails.length === 0) {
+//         showMessage('Please select at least one image', 'error');
+//         return;
+//     }
+    
+//     form.classList.add('loading');
+//     const button = form.querySelector('button[type="submit"]');
+//     const originalButtonText = button.textContent;
+//     button.textContent = 'Processing...';
+    
+//     try {
+//         const email = localStorage.getItem('wardrobeEmail');
+//         const password = localStorage.getItem('wardrobePassword');
+        
+//         for (const thumbnail of visibleThumbnails) {
+//             const fileId = thumbnail.dataset.fileId;
+//             const file = currentFiles.get(fileId);
+            
+//             if (!file) continue;
+            
+//             const tokenName = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+//             // Convert file to base64
+//             const base64File = await fileToBase64(file);
+            
+//             // Create JSON request body
+//             const requestBody = {
+//                 email: email,
+//                 password: password,
+//                 token_name: tokenName,
+//                 image_data: base64File.includes('base64,') ? base64File.split('base64,')[1] : base64File,
+//                 file_name: file.name,
+//                 content_type: file.type
+//             };
+
+//             const response = await fetch('/upload', {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json'
+//                 },
+//                 body: JSON.stringify(requestBody)
+//             });
+
+//             const result = await response.json();
+            
+//             if (result.status === 'success') {
+//                 const gridContainer = document.querySelector('.grid');
+//                 const newItem = createItemCard({
+//                     ...result,
+//                     token_name: tokenName,
+//                     unique_id: result.unique_id || tokenName
+//                 });
+//                 gridContainer.insertBefore(newItem, gridContainer.firstChild);
+//                 newItem.classList.add('slide-in-right');
+//             }
+//         }
+        
+//         // Clear form and close modal
+//         currentFiles.clear();
+//         document.getElementById('image').value = '';
+//         thumbnailsContainer.innerHTML = '';
+//         closeUploadModal();
+//         showMessage(`Successfully uploaded ${visibleThumbnails.length} images`, 'success');
+        
+//     } catch (error) {
+//         console.error('Error:', error);
+//         showMessage('An error occurred during upload', 'error');
+//     } finally {
+//         form.classList.remove('loading');
+//         button.textContent = originalButtonText;
+//     }
+// });
+
+// Update createItemCard for smoother transitions
 function createItemCard(result) {
     const div = document.createElement('div');
     div.className = 'bg-white rounded-2xl overflow-hidden shadow-lg hover-scale';
     div.dataset.token = result.token_name;
     
+    const caption = result.caption || result.image_caption || '';
+    const imageUrl = result.image_url;
+    const uniqueId = result.unique_id;
+    
     div.innerHTML = `
         <div class="relative">
-            <img src="${result.image_url}" alt="${result.token_name}" class="w-full h-72 object-cover">
+            <img src="${imageUrl}" alt="${caption}" class="w-full h-72 object-cover">
             <button 
                 onclick="toggleItemSelection({
-                    uniqueId: '${result.unique_id}',
+                    uniqueId: '${uniqueId}',
                     tokenName: '${result.token_name}',
-                    imageUrl: '${result.image_url}',
-                    caption: '${result.caption || result.image_caption}'
+                    imageUrl: '${imageUrl}',
+                    caption: '${caption.replace(/'/g, "\\'")}'
                 })"
                 class="absolute top-3 left-3 w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-md hover:bg-white hover:shadow-lg transition-all duration-300 select-item-btn z-10"
                 data-token="${result.token_name}"
@@ -639,7 +877,7 @@ function createItemCard(result) {
             </button>
         </div>
         <div class="p-5">
-            <p class="text-gray-800 text-lg font-medium leading-relaxed">${result.caption || result.image_caption}</p>
+            <p class="text-gray-800 text-lg font-medium leading-relaxed">${caption}</p>
         </div>
     `;
     
@@ -895,7 +1133,7 @@ function showStylistInfo(name, bio, contact, image) {
     document.getElementById("stylistName").textContent = name;
     document.getElementById("stylistBio").textContent = bio;
     document.getElementById("stylistContact").textContent = contact;
-    document.getElementById("stylistImage").src = `/frontend/images/${image}`;
+    document.getElementById("stylistImage").src = `/static/images/${image}`;
     document.getElementById("stylistInfoModal").classList.remove("hidden");
     closeAvatarModal(); // Close the avatar modal
 }
@@ -1019,7 +1257,7 @@ function showEmptyState() {
     document.querySelector('.grid').appendChild(emptyState);
 }
 // Updated delete function
-function deleteItem(token_name, itemElement) {
+async function deleteItem(token_name, itemElement) {
     const modal = document.getElementById('deleteModal') || createDeleteModal();
     modal.classList.remove('hidden');
 
@@ -1028,18 +1266,15 @@ function deleteItem(token_name, itemElement) {
 
     const handleDelete = async () => {
         modal.classList.add('hidden');
-        const email = localStorage.getItem('wardrobeEmail');
-        const password = localStorage.getItem('wardrobePassword');
-
         try {
             const response = await fetch(`/delete_item/${token_name}`, {
-                method: "POST",
+                method: 'DELETE',
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
+                    'Content-Type': 'application/json'
                 },
-                body: new URLSearchParams({
-                    email: email,
-                    password: password
+                body: JSON.stringify({
+                    email: localStorage.getItem('wardrobeEmail'),
+                    password: localStorage.getItem('wardrobePassword')
                 })
             });
 
@@ -1047,13 +1282,13 @@ function deleteItem(token_name, itemElement) {
             
             if (data.success) {
                 removeItemWithAnimation(itemElement);
-                showDeleteFeedback(true);
+                showMessage("Item deleted successfully", 'success');
             } else {
-                showDeleteFeedback(false);
+                showMessage(data.message || "Failed to delete item", 'error');
             }
         } catch (error) {
             console.error("Error:", error);
-            showDeleteFeedback(false);
+            showMessage("Failed to delete item", 'error');
         }
     };
 
@@ -1064,32 +1299,33 @@ function deleteItem(token_name, itemElement) {
     confirmBtn.addEventListener('click', handleDelete, { once: true });
     cancelBtn.addEventListener('click', handleCancel, { once: true });
 }
+
 function saveCaption(uniqueId, tokenName, newCaption) {
     fetch(`/edit_caption/${uniqueId}`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json"
         },
-        body: new URLSearchParams({
+        body: JSON.stringify({
             unique_id: uniqueId,
-            token_name: tokenName, // Include token name
+            token_name: tokenName,
             new_caption: newCaption,
             email: localStorage.getItem('wardrobeEmail'),
             password: localStorage.getItem('wardrobePassword')
         })
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage("Caption updated successfully.", "success");
-            } else {
-                showMessage("Failed to update caption.", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            showMessage("An error occurred.", "error");
-        });
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage("Caption updated successfully.", "success");
+        } else {
+            showMessage("Failed to update caption.", "error");
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        showMessage("An error occurred.", "error");
+    });
 }
 function filterStylists() {
     const searchInput = document.getElementById("stylistSearch").value.toLowerCase();
@@ -1284,21 +1520,21 @@ function arrangeStylistsByGender(gender) {
         // Define stylist HTML strings with the actual content
         const reginaldHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Reginald', 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek, is a personal stylist dedicated to helping clients elevate their style and confidence. With services like private consultations, closet audits, and curated shopping experiences, he offers a tailored approach to fashion. Reginald believes that clothing is currency and teaches clients to invest in timeless, high-quality pieces that reflect their unique identity. His mission is to transform individuals into their best selves, making style effortless and empowering.', 'reg@nyfashiongeek.com', 'reginald.png')">
-                <img src="/frontend/images/reginald.png" alt="Reginald" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/reginald.png" alt="Reginald" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Reginald</span>
             </div>
         `;
         
         const elizaHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Eliza', 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist with expertise in designer, couture, and vintage clothing. With experience at top fashion houses like Bergdorf Goodman, Saks Fifth Avenue, and Louis Vuitton, Eliza helps clients find their signature style through curated wardrobes and her popular Wardrobe Remix service. She also hosts the Wardrobe Boss podcast, sharing her passion for empowering confidence through fashion.', 'support@ba536d85-492f-45fb-a195-b4b002d8804a.mail.conversations.godaddy.com', 'eliza.png')">
-                <img src="/frontend/images/eliza.png" alt="Eliza" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/eliza.png" alt="Eliza" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Eliza</span>
             </div>
         `;
         
         const liliaHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Lilia', 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling that celebrates individual body shapes with elegance and confidence. Known for her 4 Body Shape Guide, she helps clients find flattering styles and create wardrobes that reflect their unique identities. Lilia offers a range of services, from closet revamps to bridal styling, all aimed at empowering clients to embrace their best selves.', 'LiliBellestyle@gmail.com', 'lilia.png')">
-                <img src="/frontend/images/lilia.png" alt="Lilia" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/lilia.png" alt="Lilia" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Lilia</span>
             </div>
         `;
@@ -1415,7 +1651,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Reginald', 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek, is a personal stylist dedicated to helping clients elevate their style and confidence. With services like private consultations, closet audits, and curated shopping experiences, he offers a tailored approach to fashion. Reginald believes that clothing is currency and teaches clients to invest in timeless, high-quality pieces that reflect their unique identity. His mission is to transform individuals into their best selves, making style effortless and empowering.', 'reg@nyfashiongeek.com', 'reginald.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/reginald.png" alt="Reginald" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/reginald.png" alt="Reginald" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1441,7 +1677,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Eliza', 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist with expertise in designer, couture, and vintage clothing. With experience at top fashion houses like Bergdorf Goodman, Saks Fifth Avenue, and Louis Vuitton, Eliza helps clients find their signature style through curated wardrobes and her popular Wardrobe Remix service. She also hosts the Wardrobe Boss podcast, sharing her passion for empowering confidence through fashion.', 'support@ba536d85-492f-45fb-a195-b4b002d8804a.mail.conversations.godaddy.com', 'eliza.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/eliza.png" alt="Eliza" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/eliza.png" alt="Eliza" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-pink-500 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1467,7 +1703,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Lilia', 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling that celebrates individual body shapes with elegance and confidence. Known for her 4 Body Shape Guide, she helps clients find flattering styles and create wardrobes that reflect their unique identities. Lilia offers a range of services, from closet revamps to bridal styling, all aimed at empowering clients to embrace their best selves.', 'LiliBellestyle@gmail.com', 'lilia.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/lilia.png" alt="Lilia" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/lilia.png" alt="Lilia" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-purple-500 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1512,7 +1748,7 @@ function showFloatingStylistInfo(name, bio, contact, image) {
     // Update header with stylist info
     const stylistInfo = document.getElementById('selectedStylistInfo');
     stylistInfo.classList.remove('hidden');
-    stylistInfo.querySelector('img').src = `/frontend/images/${image}`;
+    stylistInfo.querySelector('img').src = `/static/images/${image}`;
     stylistInfo.querySelector('h3').textContent = `AI ${name}`;
     
     // Hide selection view, show chat view
@@ -1524,7 +1760,7 @@ function showFloatingStylistInfo(name, bio, contact, image) {
     floatingSelectedStylist = {
         id: stylistId,
         name: `AI ${name}`,
-        image: `/frontend/images/${image}`
+        image: `/static/images/${image}`
     };
     
     // Add welcome message
@@ -1769,9 +2005,9 @@ async function updateFloatingGenderPreference(gender) {
         const response = await fetch('/update_gender', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 gender: gender
@@ -1780,7 +2016,7 @@ async function updateFloatingGenderPreference(gender) {
 
         const result = await response.json();
 
-        if (result.success) {
+        if (result.status === 'success') {
             showMessage('Gender preference updated successfully', 'success');
             arrangeFloatingStylistsByGender(gender);
         } else {
@@ -1790,6 +2026,20 @@ async function updateFloatingGenderPreference(gender) {
         console.error('Error updating gender:', error);
         showMessage('An error occurred while updating gender preference', 'error');
     }
+}
+// Utility function to update UI elements
+function updateUIAfterAction(action, status, message) {
+    showMessage(message, status === 'success' ? 'success' : 'error');
+    if (status === 'success') {
+        // Additional UI updates can be added here
+        if (action === 'upload') {
+            document.getElementById('uploadModal')?.classList.add('hidden');
+        }
+    }
+}
+// Helper function to check if a file is an image
+function isImageFile(file) {
+    return file && file.type.startsWith('image/');
 }
 
 function toggleFloatingChat() {
@@ -1905,12 +2155,13 @@ async function handleFloatingChatSubmit(event) {
     document.getElementById('floatingTypingIndicator').classList.remove('hidden');
 
     try {
-        // Create FormData object
-        const formData = new FormData();
-        formData.append('input_text', message);
-        formData.append('email', localStorage.getItem('wardrobeEmail'));
-        formData.append('password', localStorage.getItem('wardrobePassword'));
-        formData.append('stylist', floatingSelectedStylist.id);
+        // Create JSON request body
+        const requestBody = {
+            input_text: message,
+            email: localStorage.getItem('wardrobeEmail'),
+            password: localStorage.getItem('wardrobePassword'),
+            stylist: floatingSelectedStylist.id
+        };
 
         // Get all selected items
         const items = Array.from(selectedItems.values());
@@ -1918,8 +2169,8 @@ async function handleFloatingChatSubmit(event) {
         if (items.length > 0) {
             // If there's only one item selected
             if (items.length === 1) {
-                formData.append('unique_id', items[0].uniqueId);
-                formData.append('token_name', items[0].tokenName);
+                requestBody.unique_id = items[0].uniqueId;
+                requestBody.token_name = items[0].tokenName;
                 console.log("Sending single item:", { 
                     uniqueId: items[0].uniqueId, 
                     tokenName: items[0].tokenName 
@@ -1927,11 +2178,11 @@ async function handleFloatingChatSubmit(event) {
             } 
             // If there are multiple items selected
             else if (items.length === 2) {
-                formData.append('unique_id', items[0].uniqueId);
-                formData.append('token_name', items[0].tokenName);
+                requestBody.unique_id = items[0].uniqueId;
+                requestBody.token_name = items[0].tokenName;
                 // Add the second item with a "2" suffix
-                formData.append('unique_id2', items[1].uniqueId);
-                formData.append('token_name2', items[1].tokenName);
+                requestBody.unique_id2 = items[1].uniqueId;
+                requestBody.token_name2 = items[1].tokenName;
                 console.log("Sending multiple items:", { 
                     item1: { uniqueId: items[0].uniqueId, tokenName: items[0].tokenName },
                     item2: { uniqueId: items[1].uniqueId, tokenName: items[1].tokenName }
@@ -1939,15 +2190,18 @@ async function handleFloatingChatSubmit(event) {
             }
         } else {
             // If no items selected, use general chat
-            formData.append('unique_id', 'general_chat');
-            formData.append('token_name', 'general_chat');
+            requestBody.unique_id = 'general_chat';
+            requestBody.token_name = 'general_chat';
             console.log("Sending general chat");
         }
 
         // Send request to backend
         const response = await fetch("/chat", {
             method: "POST",
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
