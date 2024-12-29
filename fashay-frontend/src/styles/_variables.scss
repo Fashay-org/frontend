@@ -1,0 +1,7 @@
+:root {
+    --max-width: 1440px;
+    --nav-height: clamp(3.5rem, 4vw, 4rem);
+    --spacing-sm: clamp(0.5rem, 1vw, 1rem);
+    --spacing-md: clamp(1rem, 2vw, 2rem);
+    --spacing-lg: clamp(2rem, 4vw, 4rem);
+}

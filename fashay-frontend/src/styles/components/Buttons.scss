@@ -1,0 +1,38 @@
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.875rem, 1.2vw, 1rem);
+    font-weight: 500;
+    height: clamp(2.5rem, 3vw, 3rem);
+    padding: 0 clamp(1rem, 2vw, 2rem);
+    background-color: #000;
+    color: #fff;
+    border-radius: 9999px;
+    transition: all 0.2s;
+
+    &:hover {
+        transform: scale(1.02);
+        background-color: #1a1a1a;
+    }
+}
+
+.fab {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom), var(--spacing-md));
+    right: var(--spacing-md);
+    width: clamp(3rem, 6vw, 3.5rem);
+    height: clamp(3rem, 6vw, 3.5rem);
+    background: black;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: transform 0.2s;
+
+    &:hover {
+        transform: scale(1.1);
+    }
+}
