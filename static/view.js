@@ -8,6 +8,7 @@ let currentTokenName = null;
 let selectedItems = new Map();
 let floatingChatUniqueId = null;
 let floatingChatTokenName = null;
+let modalContainer = null;
 // Stylist data
 let stylists = [
     {
@@ -2129,6 +2130,7 @@ function selectFloatingStylist(stylistId) {
     });
     updateFloatingChatView();
 }
+// Updated handleFloatingChatSubmit function
 async function handleFloatingChatSubmit(event) {
     event.preventDefault();
     const input = document.getElementById('floatingChatInput');
@@ -2139,13 +2141,14 @@ async function handleFloatingChatSubmit(event) {
     // Get selected items
     const items = Array.from(selectedItems.values());
 
-    // Add user message with selected items' images
+    // Add user message to chat
     floatingChatHistory.push({ 
         type: 'user', 
         text: message,
         images: items.map(item => ({
+            image_id: item.tokenName,
             image_url: item.imageUrl,
-            caption: item.caption
+            token_name: item.tokenName
         }))
     });
     updateFloatingChatView();
@@ -2155,47 +2158,14 @@ async function handleFloatingChatSubmit(event) {
     document.getElementById('floatingTypingIndicator').classList.remove('hidden');
 
     try {
-        // Create JSON request body
         const requestBody = {
             input_text: message,
             email: localStorage.getItem('wardrobeEmail'),
             password: localStorage.getItem('wardrobePassword'),
-            stylist: floatingSelectedStylist.id
+            stylist: floatingSelectedStylist.id,
+            token_name: items.length > 0 ? items[0].tokenName : 'general_chat'
         };
 
-        // Get all selected items
-        const items = Array.from(selectedItems.values());
-        
-        if (items.length > 0) {
-            // If there's only one item selected
-            if (items.length === 1) {
-                requestBody.unique_id = items[0].uniqueId;
-                requestBody.token_name = items[0].tokenName;
-                console.log("Sending single item:", { 
-                    uniqueId: items[0].uniqueId, 
-                    tokenName: items[0].tokenName 
-                });
-            } 
-            // If there are multiple items selected
-            else if (items.length === 2) {
-                requestBody.unique_id = items[0].uniqueId;
-                requestBody.token_name = items[0].tokenName;
-                // Add the second item with a "2" suffix
-                requestBody.unique_id2 = items[1].uniqueId;
-                requestBody.token_name2 = items[1].tokenName;
-                console.log("Sending multiple items:", { 
-                    item1: { uniqueId: items[0].uniqueId, tokenName: items[0].tokenName },
-                    item2: { uniqueId: items[1].uniqueId, tokenName: items[1].tokenName }
-                });
-            }
-        } else {
-            // If no items selected, use general chat
-            requestBody.unique_id = 'general_chat';
-            requestBody.token_name = 'general_chat';
-            console.log("Sending general chat");
-        }
-
-        // Send request to backend
         const response = await fetch("/chat", {
             method: "POST",
             headers: {
@@ -2205,36 +2175,24 @@ async function handleFloatingChatSubmit(event) {
         });
 
         const data = await response.json();
-        console.log("Received chat response:", data);
         
         // Hide typing indicator
         document.getElementById('floatingTypingIndicator').classList.add('hidden');
 
-        if (data.error) {
-            throw new Error(data.error);
-        }
-
-        // Prepare images array combining selected items and response images
-        const selectedItemImages = items.map(item => ({
-            image_url: item.imageUrl,
-            caption: item.caption || ''
-        }));
-
-        const responseImages = data.images || [];
-        const uniqueSelectedImages = selectedItemImages.filter(selectedImg => 
-            !responseImages.some(responseImg => responseImg.image_url === selectedImg.image_url)
-        );                
-        // Add assistant message with all images
-        floatingChatHistory.push({
+        // Create assistant message with all response components
+        const assistantMessage = {
             type: 'assistant',
             text: data.reply,
-            images: [...uniqueSelectedImages, ...responseImages]
-        });
+            images: data.images || [],
+            recommendations: data.recommendations,
+            shopping_analysis: data.shopping_analysis
+        };
         
+        floatingChatHistory.push(assistantMessage);
         updateFloatingChatView();
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Chat error:", error);
         document.getElementById('floatingTypingIndicator').classList.add('hidden');
         
         floatingChatHistory.push({
@@ -2243,12 +2201,296 @@ async function handleFloatingChatSubmit(event) {
             images: []
         });
         updateFloatingChatView();
-        
         showMessage("Failed to send message", "error");
     }
 }
 
-// Update updateFloatingChatView function to properly display images
+
+function createProductGallery(products) {
+    // Create gallery container
+    const gallery = document.createElement('div');
+    gallery.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4';
+
+    // Create gallery items
+    products.forEach(product => {
+        if (product.image_urls && product.image_urls.length > 0) {
+            const imageCard = document.createElement('div');
+            imageCard.className = 'relative aspect-square rounded-xl overflow-hidden cursor-pointer group';
+            
+            const img = document.createElement('img');
+            img.src = product.image_urls[0];
+            img.className = 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-105';
+            
+            // Overlay with product name
+            const overlay = document.createElement('div');
+            overlay.className = 'absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300';
+            
+            const name = document.createElement('div');
+            name.className = 'absolute bottom-0 left-0 right-0 p-4 text-white text-sm font-medium';
+            name.textContent = product.product_text.split('.')[0].trim();
+            
+            overlay.appendChild(name);
+            imageCard.appendChild(img);
+            imageCard.appendChild(overlay);
+            
+            // Click handler to show modal
+            imageCard.onclick = () => showProductModal(product);
+            
+            gallery.appendChild(imageCard);
+        }
+    });
+
+    return gallery;
+}
+
+function createModal() {
+    if (modalContainer) return modalContainer;
+
+    modalContainer = document.createElement('div');
+    modalContainer.className = 'fixed inset-0 z-50 hidden';
+    modalContainer.innerHTML = `
+        <div class="fixed inset-0 bg-black/60" aria-hidden="true"></div>
+        <div class="fixed inset-0 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative bg-white w-full max-w-lg rounded-lg">
+                    <!-- Close button -->
+                    <button class="modal-close absolute right-4 top-4 z-10 p-1">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+
+                    <!-- Image Gallery -->
+                    <div class="relative">
+                        <div class="aspect-square w-full relative overflow-hidden" id="modalImageContainer">
+                            <div id="modalImageGallery" class="absolute inset-0"></div>
+                            
+                            <!-- Navigation Areas -->
+                            <div class="absolute inset-y-0 left-0 w-1/2 cursor-pointer" id="prevImageArea"></div>
+                            <div class="absolute inset-y-0 right-0 w-1/2 cursor-pointer" id="nextImageArea"></div>
+                            
+                            <!-- Image Counter -->
+                            <div class="absolute left-4 top-4 bg-gray-100 rounded-full px-2.5 py-1 text-xs">
+                                <span id="currentImageIndex">1</span>/<span id="totalImages">1</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Info -->
+                    <div class="p-6 space-y-6">
+                        <!-- Product Name & Price -->
+                        <div class="flex items-start justify-between gap-4">
+                            <h2 class="text-base text-gray-900 leading-normal" id="modalProductName"></h2>
+                            <div class="text-base text-gray-900" id="modalProductPrice"></div>
+                        </div>
+
+                        <!-- Brand -->
+                        <div class="text-sm text-gray-500 uppercase">
+                            By <span id="modalProductRetailer"></span>
+                        </div>
+
+                        <!-- Styling Tips -->
+                        <div class="space-y-2">
+                            <h3 class="text-sm uppercase text-gray-500">Styling Suggestions</h3>
+                            <ul class="space-y-2 text-sm text-gray-600" id="modalStylingTips"></ul>
+                        </div>
+
+                        <!-- View Product Button -->
+                        <a id="modalProductLink" target="_blank" 
+                        class="group inline-flex w-full items-center justify-between bg-black text-white px-6 py-4 text-sm font-medium hover:opacity-90 transition-all rounded-md">
+                            <span>View Product</span>
+                            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalContainer);
+    return modalContainer;
+}
+
+function showProductModal(product) {
+    const modal = createModal();
+    let currentImageIndex = 0;
+    let touchStartX = 0;
+    let imagesLoaded = new Set();
+    
+    const gallery = modal.querySelector('#modalImageGallery');
+    const imageContainer = modal.querySelector('#modalImageContainer');
+    const name = modal.querySelector('#modalProductName');
+    const retailer = modal.querySelector('#modalProductRetailer');
+    const price = modal.querySelector('#modalProductPrice');
+    const tipsList = modal.querySelector('#modalStylingTips');
+    const productLink = modal.querySelector('#modalProductLink');
+    const currentIndexEl = modal.querySelector('#currentImageIndex');
+    const totalImagesEl = modal.querySelector('#totalImages');
+    const prevArea = modal.querySelector('#prevImageArea');
+    const nextArea = modal.querySelector('#nextImageArea');
+
+    // Preload images
+    function preloadImage(url) {
+        if (imagesLoaded.has(url)) return Promise.resolve();
+        
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                imagesLoaded.add(url);
+                resolve();
+            };
+            img.onerror = reject;
+            img.src = url;
+        });
+    }
+    
+    // Update image display
+    async function updateImage(index, direction = 'next') {
+        if (index < 0 || index >= product.image_urls.length) return;
+        
+        const url = product.image_urls[index];
+        await preloadImage(url);
+        
+        currentImageIndex = index;
+        
+        // Create new image
+        const newImage = document.createElement('div');
+        newImage.className = 'absolute inset-0 transition-transform duration-300';
+        newImage.innerHTML = `
+            <img src="${url}" alt="${product.product_text}" 
+                 class="w-full h-full object-cover">
+        `;
+        
+        // Position new image
+        newImage.style.transform = direction === 'next' ? 'translateX(100%)' : 'translateX(-100%)';
+        gallery.appendChild(newImage);
+        
+        // Trigger slide animation
+        requestAnimationFrame(() => {
+            const currentImage = gallery.querySelector('.current-image');
+            if (currentImage) {
+                currentImage.style.transform = direction === 'next' ? 'translateX(-100%)' : 'translateX(100%)';
+                currentImage.addEventListener('transitionend', () => currentImage.remove(), { once: true });
+            }
+            
+            newImage.style.transform = 'translateX(0)';
+            newImage.classList.add('current-image');
+        });
+        
+        // Update counter and navigation
+        currentIndexEl.textContent = currentImageIndex + 1;
+        updateNavigation();
+    }
+    
+    function updateNavigation() {
+        prevArea.style.cursor = currentImageIndex > 0 ? 'pointer' : 'default';
+        nextArea.style.cursor = currentImageIndex < product.image_urls.length - 1 ? 'pointer' : 'default';
+    }
+    
+    // Setup image navigation
+    if (product.image_urls && product.image_urls.length > 0) {
+        totalImagesEl.textContent = product.image_urls.length;
+        updateImage(0);
+        
+        // Click navigation
+        prevArea.onclick = () => {
+            if (currentImageIndex > 0) {
+                updateImage(currentImageIndex - 1, 'prev');
+            }
+        };
+        
+        nextArea.onclick = () => {
+            if (currentImageIndex < product.image_urls.length - 1) {
+                updateImage(currentImageIndex + 1, 'next');
+            }
+        };
+        
+        // Touch navigation
+        imageContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        
+        imageContainer.addEventListener('touchmove', (e) => {
+            if (!touchStartX) return;
+            
+            const touchEndX = e.touches[0].clientX;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentImageIndex < product.image_urls.length - 1) {
+                    updateImage(currentImageIndex + 1, 'next');
+                } else if (diff < 0 && currentImageIndex > 0) {
+                    updateImage(currentImageIndex - 1, 'prev');
+                }
+                touchStartX = null;
+            }
+        }, { passive: true });
+        
+        imageContainer.addEventListener('touchend', () => {
+            touchStartX = null;
+        }, { passive: true });
+    }
+    
+    // Set product details
+    name.textContent = product.product_text.split('.')[0];
+    retailer.textContent = product.brand || 'Not specified';
+    price.textContent = typeof product.price === 'number' ? 
+        `$${product.price.toFixed(2)}` : 
+        (product.price || 'Price not available');
+    
+    if (tipsList && product.styling_tips) {
+        tipsList.innerHTML = product.styling_tips.map(tip => 
+            `<li>${tip}</li>`
+        ).join('');
+    }
+    
+    if (productLink && product.url) {
+        productLink.href = product.url;
+    }
+
+    // Show modal and handle keyboard navigation
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyboard = (e) => {
+        if (e.key === 'ArrowLeft' && currentImageIndex > 0) {
+            updateImage(currentImageIndex - 1, 'prev');
+        }
+        if (e.key === 'ArrowRight' && currentImageIndex < product.image_urls.length - 1) {
+            updateImage(currentImageIndex + 1, 'next');
+        }
+        if (e.key === 'Escape') {
+            modal.querySelector('.modal-close').click();
+        }
+    };
+    document.addEventListener('keydown', handleKeyboard);
+
+    // Cleanup
+    modal.querySelector('.modal-close').onclick = () => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', handleKeyboard);
+    };
+}
+// Function to initialize the gallery
+function initializeProductGallery(products) {
+    const gallery = createProductGallery(products);
+    createModal(); // Create modal container once
+    return gallery;
+}
+// Initialize floating chat when page loads
+document.addEventListener('DOMContentLoaded', initializeFloatingChat);
+
+// Add event listener for Enter key in floating chat
+document.getElementById('floatingChatInput')?.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        handleFloatingChatSubmit(event);
+    }
+});
+
 function updateFloatingChatView() {
     const chatContainer = document.getElementById('floatingMessageContainer');
     chatContainer.innerHTML = '';
@@ -2258,6 +2500,7 @@ function updateFloatingChatView() {
         messageDiv.className = `flex items-start gap-2 mb-4 ${message.type === 'user' ? 'justify-end' : ''}`;
         
         if (message.type === 'assistant') {
+            // Add stylist avatar
             const avatarDiv = document.createElement('div');
             avatarDiv.className = 'flex-shrink-0';
             const avatar = document.createElement('img');
@@ -2270,43 +2513,121 @@ function updateFloatingChatView() {
         const messageBubble = document.createElement('div');
         messageBubble.className = `message-bubble ${message.type === 'user' ? 'user-message' : 'assistant-message'}`;
         
-        // Add text content
-        const textDiv = document.createElement('div');
-        textDiv.textContent = message.text;
-        messageBubble.appendChild(textDiv);
+        if (message.type === 'user') {
+            // User message section
+            const textDiv = document.createElement('div');
+            textDiv.textContent = message.text;
+            messageBubble.appendChild(textDiv);
 
-        // Add images if present
-        if (message.images && message.images.length > 0) {
-            console.log("Processing images:", message.images); // Debug log
-            
-            const imageContainer = document.createElement('div');
-            imageContainer.className = 'mt-2 flex flex-wrap gap-2';
-            
-            message.images.forEach(image => {
-                if (!image || !image.image_url) {
-                    console.warn("Invalid image data:", image);
-                    return;
+            // Add selected item images in a grid
+            if (message.images && message.images.length > 0) {
+                const imageGrid = document.createElement('div');
+                imageGrid.className = 'grid grid-cols-2 gap-2 mt-2';
+                
+                message.images.forEach(image => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'aspect-square rounded-lg overflow-hidden bg-gray-50';
+                    
+                    const img = document.createElement('img');
+                    img.src = image.image_url;
+                    img.className = 'w-full h-full object-cover';
+                    img.loading = 'lazy';
+                    
+                    imgWrapper.appendChild(img);
+                    imageGrid.appendChild(imgWrapper);
+                });
+                
+                messageBubble.appendChild(imageGrid);
+            }
+        } else {
+            // Assistant message section
+            if (message.text) {
+                const textDiv = document.createElement('div');
+                textDiv.className = 'text-gray-800 font-medium mb-4';
+                textDiv.textContent = message.text;
+                messageBubble.appendChild(textDiv);
+            }
+
+            // Display recommended wardrobe images
+            if (message.images && message.images.length > 0) {
+                const imageSection = document.createElement('div');
+                imageSection.className = 'mt-4 space-y-2';
+                
+                const imagesLabel = document.createElement('div');
+                imagesLabel.className = 'text-sm text-gray-500 font-medium';
+                imagesLabel.textContent = 'Recommended Items from Your Wardrobe:';
+                imageSection.appendChild(imagesLabel);
+                
+                const imageGrid = document.createElement('div');
+                imageGrid.className = 'grid grid-cols-3 gap-2';
+                
+                message.images.forEach(image => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'aspect-square rounded-lg overflow-hidden bg-gray-50 shadow-sm';
+                    
+                    const img = document.createElement('img');
+                    img.src = image.image_url;
+                    img.alt = image.token_name;
+                    img.className = 'w-full h-full object-cover hover:scale-105 transition-transform duration-300';
+                    img.loading = 'lazy';
+                    
+                    imgWrapper.appendChild(img);
+                    imageGrid.appendChild(imgWrapper);
+                });
+                
+                imageSection.appendChild(imageGrid);
+                messageBubble.appendChild(imageSection);
+            }
+
+            // Product recommendations section
+            if (message.recommendations && message.recommendations.products && 
+                message.recommendations.products.length > 0) {
+                
+                if (message.images && message.images.length > 0) {
+                    // Add a divider if we have both wardrobe images and product recommendations
+                    const divider = document.createElement('div');
+                    divider.className = 'my-4 border-t border-gray-200';
+                    messageBubble.appendChild(divider);
                 }
 
-                const imgWrapper = document.createElement('div');
-                imgWrapper.className = 'relative flex-shrink-0 w-32';
+                const recommendationsSection = document.createElement('div');
+                recommendationsSection.className = 'space-y-2';
                 
-                const imgElement = document.createElement('img');
-                imgElement.src = image.image_url;
-                imgElement.alt = image.caption || 'Chat image';
-                imgElement.className = 'w-full h-32 rounded-lg object-cover shadow-sm cursor-pointer hover:opacity-90 transition-opacity';
+                const recommendationsLabel = document.createElement('div');
+                recommendationsLabel.className = 'text-sm text-gray-500 font-medium';
+                recommendationsLabel.textContent = 'Suggested Products:';
+                recommendationsSection.appendChild(recommendationsLabel);
                 
-                // Add click handler to view full size
-                imgElement.onclick = () => {
-                    window.open(image.image_url, '_blank');
-                };
-                
-                imgWrapper.appendChild(imgElement);
-                imageContainer.appendChild(imgWrapper);
-            });
-            
-            if (imageContainer.children.length > 0) {
-                messageBubble.appendChild(imageContainer);
+                const productsGrid = document.createElement('div');
+                productsGrid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+
+                message.recommendations.products.forEach(product => {
+                    if (product.image_urls && product.image_urls.length > 0) {
+                        const productCard = document.createElement('div');
+                        productCard.className = 'relative aspect-square rounded-lg overflow-hidden bg-gray-50 cursor-pointer group';
+                        
+                        const img = document.createElement('img');
+                        img.src = product.image_urls[0];
+                        img.className = 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-105';
+                        
+                        const overlay = document.createElement('div');
+                        overlay.className = 'absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300';
+                        
+                        const name = document.createElement('div');
+                        name.className = 'absolute bottom-0 left-0 right-0 p-3 text-white text-sm font-medium';
+                        name.textContent = product.product_text.split('.')[0].trim();
+                        
+                        overlay.appendChild(name);
+                        productCard.appendChild(img);
+                        productCard.appendChild(overlay);
+                        
+                        productCard.onclick = () => showProductModal(product);
+                        productsGrid.appendChild(productCard);
+                    }
+                });
+
+                recommendationsSection.appendChild(productsGrid);
+                messageBubble.appendChild(recommendationsSection);
             }
         }
 
@@ -2320,17 +2641,6 @@ function updateFloatingChatView() {
         behavior: 'smooth'
     });
 }
-
-// Initialize floating chat when page loads
-document.addEventListener('DOMContentLoaded', initializeFloatingChat);
-
-// Add event listener for Enter key in floating chat
-document.getElementById('floatingChatInput')?.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        handleFloatingChatSubmit(event);
-    }
-});
 
 function openFloatingChatWithSelection() {
     if (selectedItems.size === 0) {

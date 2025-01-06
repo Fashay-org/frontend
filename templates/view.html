@@ -9,8 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/view.css">
+    <link rel="stylesheet" href="/static/shop.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
     <script src="/static/view.js" defer></script>
+    <script src="/static/shop.js" defer></script>
 </head>
 
 <body class="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
@@ -32,6 +34,7 @@
             </button>
         </div>
     </nav>
+
     <!-- Mobile menu -->
     <div id="mobileMenu" class="mobile-menu hidden sm:hidden">
         <div class="mobile-menu-content">
@@ -40,6 +43,7 @@
             <a href="#" onclick="handleLogout(event)" class="mobile-menu-item btn-primary">Logout</a>
         </div>
     </div>
+
     <!-- Profile Picture Section -->
     <div class="mt-28 flex items-center justify-center px-4 sm:px-0">
         <div class="text-center fade-in">
@@ -48,7 +52,6 @@
                 <img src="{{ profile_image }}" alt="Profile Picture"
                     class="rounded-full w-32 h-32 sm:w-40 sm:h-40 border-4 border-white object-cover shadow-xl hover-scale">
                 <div class="absolute inset-0 rounded-full border-4 border-gray-100 opacity-50"></div>
-                <!-- Add edit overlay -->
                 <label for="profile-upload" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity duration-300">
                     <span class="text-white text-sm font-medium">Change Photo</span>
                 </label>
@@ -74,41 +77,146 @@
     </h1>
     <p class="text-center text-gray-600 mb-12 px-4">Organize and manage your fashion collection</p>
 
-    <!-- Wardrobe Items Section -->
+    <!-- Tabs and Filters -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 mb-16">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 fade-in">
-            {% for item in items %}
-            <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover-scale" data-token="{{ item.token_name }}">
-                <div class="relative">
-                    <img src="{{ item.image_url }}" alt="{{ item.token_name }}" class="w-full h-48 sm:h-72 object-cover">
-                    <!-- Add the select button -->
-                    <button 
-                        onclick="toggleItemSelection({
-                            uniqueId: '{{ item.unique_id }}', 
-                            tokenName: '{{ item.token_name }}',
-                            imageUrl: '{{ item.image_url }}', 
-                            caption: '{{ item.image_caption }}'
-                        })" 
-                        class="absolute top-3 left-3 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-all duration-300 select-item-btn"
-                        data-token="{{ item.token_name }}"
-                        data-json="true"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                    <!-- Delete button -->
-                    <button onclick="deleteItem('{{ item.token_name }}', this.closest('.hover-scale'))" 
-                            class="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center opacity-90 hover:opacity-100 transition duration-300"
-                            data-json="true">
-                        &times;
-                    </button>
-                </div>
-                <div class="p-4 sm:p-5">
-                    <p class="text-gray-800 text-base sm:text-lg font-medium leading-relaxed">{{ item.image_caption }}</p>
+        <div class="border-b">
+            <!-- Tabs -->
+            <div class="flex">
+                <button onclick="switchTab('wardrobe')" class="tab-button active flex-1 py-4 text-center font-medium border-t-2 border-black">
+                    <svg class="w-4 h-4 inline-block mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                    Wardrobe
+                </button>
+                <button onclick="switchTab('shop')" class="tab-button flex-1 py-4 text-center font-medium text-gray-500 border-t-2 border-transparent">
+                    <svg class="w-4 h-4 inline-block mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                    </svg>
+                    Shop
+                </button>
+            </div>
+
+            <!-- Filters (visible only in shop tab) -->
+            <div id="shopFilters" class="hidden py-4 border-t">
+                <div class="flex flex-wrap gap-4">
+                    <!-- Category Filter -->
+                    <select id="categoryFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
+                        <option value="">All Categories</option>
+                    </select>
+
+                    <!-- Brand Filter -->
+                    <select id="brandFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
+                        <option value="">All Brands</option>
+                    </select>
+
+                    <!-- Price Range Filter -->
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="minPrice" placeholder="Min Price" onchange="applyFilters()" 
+                               class="px-4 py-2 border rounded-lg text-sm w-24">
+                        <span>-</span>
+                        <input type="number" id="maxPrice" placeholder="Max Price" onchange="applyFilters()" 
+                               class="px-4 py-2 border rounded-lg text-sm w-24">
+                    </div>
+
+                    <!-- Retailer Filter -->
+                    <select id="retailerFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
+                        <option value="">All Retailers</option>
+                        <option value="hm">H&M</option>
+                        <option value="amazon">Amazon</option>
+                    </select>
+
+                    <!-- Sort Options -->
+                    <select id="sortFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
+                        <option value="created_at-desc">Newest First</option>
+                        <option value="created_at-asc">Oldest First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                    </select>
                 </div>
             </div>
-            {% endfor %}
+        </div>
+
+        <!-- Content Sections -->
+        <!-- Wardrobe Section -->
+        <div id="wardrobeSection" class="py-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 fade-in">
+                {% for item in items %}
+                <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover-scale" data-token="{{ item.token_name }}">
+                    <div class="relative">
+                        <img src="{{ item.image_url }}" alt="{{ item.token_name }}" class="w-full h-48 sm:h-72 object-cover">
+                        <button 
+                            onclick="toggleItemSelection({
+                                uniqueId: '{{ item.unique_id }}', 
+                                tokenName: '{{ item.token_name }}',
+                                imageUrl: '{{ item.image_url }}', 
+                                caption: '{{ item.image_caption }}'
+                            })" 
+                            class="absolute top-3 left-3 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-all duration-300 select-item-btn"
+                            data-token="{{ item.token_name }}"
+                            data-json="true"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                        <button onclick="deleteItem('{{ item.token_name }}', this.closest('.hover-scale'))" 
+                                class="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center opacity-90 hover:opacity-100 transition duration-300"
+                                data-json="true">
+                            &times;
+                        </button>
+                    </div>
+                    <div class="p-4 sm:p-5">
+                        <p class="text-gray-800 text-base sm:text-lg font-medium leading-relaxed">{{ item.image_caption }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Shop Section -->
+        <div id="shopSection" class="hidden py-8">
+            <!-- Updated Filters Section -->
+            <div class="mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Category Filter -->
+                    <select id="categoryFilter" class="filter-control px-4 py-2 border rounded-lg">
+                        <option value="">All Categories</option>
+                    </select>
+
+                    <!-- Brand Filter -->
+                    <select id="brandFilter" class="filter-control px-4 py-2 border rounded-lg">
+                        <option value="">All Brands</option>
+                    </select>
+
+                    <!-- Sort By -->
+                    <select id="sortBy" class="filter-control px-4 py-2 border rounded-lg">
+                        <option value="created_at">Latest</option>
+                        <option value="price">Price</option>
+                        <option value="name">Name</option>
+                    </select>
+
+                    <!-- Sort Order -->
+                    <select id="sortOrder" class="filter-control px-4 py-2 border rounded-lg">
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Products Container -->
+            <div id="productsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="mt-8 flex justify-center items-center gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="productModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <div class="bg-white rounded-lg w-full max-w-2xl">
+                <!-- Modal content will be dynamically inserted here -->
+            </div>
         </div>
     </div>
 
