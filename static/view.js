@@ -1541,9 +1541,9 @@ function arrangeStylistsByGender(gender) {
         `;
 
         // Arrange stylists based on gender with smooth transition
-        if (gender === "man" || gender === "Man") {
+        if (gender === "men" || gender === "Men") {
             stylistList.innerHTML = reginaldHTML + elizaHTML + liliaHTML;
-        } else if (gender === "woman" || gender === "Woman") {
+        } else if (gender === "women" || gender === "Women") {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
         } else {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
@@ -1590,8 +1590,8 @@ async function initializeFloatingChat() {
                 </button>
                 <div id="genderDropdown" class="absolute z-50 hidden w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
                     <div class="max-h-48 overflow-auto">
-                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="man">Man</button>
-                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="woman">Woman</button>
+                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="men">Men</button>
+                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="women">Women</button>
                         <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="other">Other</button>
                     </div>
                 </div>
@@ -1725,9 +1725,9 @@ function arrangeFloatingStylistsByGender(gender) {
             </div>
         `;
 
-        if (gender === "man" || gender === "Man") {
+        if (gender === "men" || gender === "Men") {
             stylistList.innerHTML = reginaldHTML + elizaHTML + liliaHTML;
-        } else if (gender === "woman" || gender === "Woman") {
+        } else if (gender === "women" || gender === "Women") {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
         } else {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
