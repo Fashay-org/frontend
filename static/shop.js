@@ -22,15 +22,16 @@ function switchTab(tabName) {
     // Update active tab button
     document.querySelectorAll('.tab-button').forEach(button => {
         if (button.textContent.toLowerCase().includes(tabName.toLowerCase())) {
-            button.classList.add('active', 'border-black');
-            button.classList.remove('text-gray-500', 'border-transparent');
+            button.classList.remove('text-gray-500');
+            button.classList.remove('border-transparent');
+            button.classList.add('border-black');
         } else {
-            button.classList.remove('active', 'border-black');
-            button.classList.add('text-gray-500', 'border-transparent');
+            button.classList.add('text-gray-500');
+            button.classList.add('border-transparent');
+            button.classList.remove('border-black');
         }
     });
 }
-
 // Make switchTab available globally
 window.switchTab = switchTab;
 

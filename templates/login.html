@@ -347,15 +347,10 @@
             const verificationCode = document.getElementById('verification_code').value;
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            console.log('Before verification - Email:', email); // Debug log
-            if (!verificationCode) {
-                errorElement.textContent = 'Please enter the verification code';
-                errorElement.classList.remove('hidden');
-                return;
-            }
 
             try {
-                const response = await fetch('/verify', {
+                // First verify the account
+                const verifyResponse = await fetch('/verify', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -367,35 +362,36 @@
                     })
                 });
 
-                const result = await response.json();
-                if (response.ok && result.status === 'success') {
-                    // After successful verification, redirect to view.html
-                    localStorage.clear(); // Clear any existing data
-                    localStorage.setItem('wardrobeEmail', result.email);
-                    localStorage.setItem('wardrobePassword', result.password);
+                const verifyResult = await verifyResponse.json();
+                
+                if (!verifyResponse.ok) {
+                    throw new Error(verifyResult.detail || verifyResult.message || 'Verification failed');
+                }
 
+                // Store credentials
+                localStorage.setItem('wardrobeEmail', email);
+                localStorage.setItem('wardrobePassword', password);
 
-                    // Submit JSON data to view endpoint
-                    const viewResponse = await fetch('/view', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            email: email,
-                            password: password
-                        })
-                    });
+                // Add a small delay to ensure database consistency
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
-                    if (viewResponse.ok) {
-                        const email = localStorage.getItem('wardrobeEmail');
-                        window.location.href = `/view?email=${encodeURIComponent(email)}`;
-                    } else {
-                        const viewError = await viewResponse.json();
-                        throw new Error(viewError.detail || viewError.message || 'Failed to access view page');
-                    }
+                // Then attempt to access the view page
+                const viewResponse = await fetch('/view', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                if (viewResponse.ok) {
+                    window.location.href = `/view?email=${encodeURIComponent(email)}`;
                 } else {
-                    throw new Error(result.detail || result.message || 'Verification failed');
+                    const viewError = await viewResponse.json();
+                    throw new Error(viewError.detail || viewError.message || 'Failed to access view page');
                 }
             } catch (error) {
                 errorElement.textContent = error.message;
@@ -423,9 +419,9 @@
             errorElement.classList.add('hidden');
         });
 
-        // Handle forgot password form submission
         forgotPasswordForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            errorElement.classList.add('hidden');
 
             const email = document.getElementById('forgotEmail').value;
             const forgotCode = document.getElementById('forgotCode').value;
@@ -433,50 +429,86 @@
 
             try {
                 if (!forgotCodeDiv.classList.contains('hidden')) {
-                    // Reset password with verification code
-                    const response = await fetch('/reset-password', {
+                    // Step 2: Reset password
+                    // First validate the new password
+                    const validation = validatePassword(newPassword);
+                    if (!validation.isValid) {
+                        errorElement.innerHTML = validation.errors.join('<br>');
+                        errorElement.classList.remove('hidden');
+                        return;
+                    }
+
+                    // Create the request body
+                    const resetData = {
+                        email: email,
+                        password: "",  // Required by AuthBase
+                        reset_code: forgotCode,
+                        new_password: newPassword
+                    };
+
+                    console.log('Reset password request data:', resetData); // Debug log
+
+                    const resetResponse = await fetch('/reset-password', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            email: email,
-                            reset_code: forgotCode,
-                            new_password: newPassword
-                        })
+                        body: JSON.stringify(resetData)
                     });
 
-                    const result = await response.json();
-                    if (response.ok) {
-                        showMessage('Password updated successfully! Please login with your new password.', 'success');
-                        backToLoginBtn.click();
-                    } else {
-                        showMessage(result.message || 'Failed to update password', 'error');
+                    if (!resetResponse.ok) {
+                        const errorData = await resetResponse.json();
+                        console.error('Reset password error:', errorData); // Debug log
+                        throw new Error(errorData.detail || errorData.message || 'Failed to reset password');
                     }
+
+                    const resetResult = await resetResponse.json();
+                    
+                    // Show success message
+                    showMessage('Password reset successful! Please login with your new password.', 'success');
+                    
+                    // Reset form and go back to login
+                    forgotPasswordForm.reset();
+                    forgotCodeDiv.classList.add('hidden');
+                    forgotNewPasswordDiv.classList.add('hidden');
+                    forgotSubmitButton.textContent = 'Send Verification Code';
+                    backToLoginBtn.click();
+
                 } else {
-                    // Request verification code
+                    // Step 1: Request verification code
+                    const forgotData = {
+                        email: email,
+                        password: ""  // Required by AuthBase but not used
+                    };
+
+                    console.log('Forgot password request data:', forgotData); // Debug log
+
                     const response = await fetch('/forgot-password', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            email: email
-                        })
+                        body: JSON.stringify(forgotData)
                     });
 
-                    const result = await response.json();
-                    if (response.ok) {
-                        forgotCodeDiv.classList.remove('hidden');
-                        forgotNewPasswordDiv.classList.remove('hidden');
-                        forgotSubmitButton.textContent = 'Update Password';
-                        showMessage('Check your email for the verification code', 'success');
-                    } else {
-                        showMessage(result.message || 'Failed to send verification code', 'error');
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        console.error('Forgot password error:', errorData); // Debug log
+                        throw new Error(errorData.detail || errorData.message || 'Failed to send verification code');
                     }
+
+                    const result = await response.json();
+
+                    // Show verification code input and new password field
+                    forgotCodeDiv.classList.remove('hidden');
+                    forgotNewPasswordDiv.classList.remove('hidden');
+                    forgotSubmitButton.textContent = 'Reset Password';
+                    showMessage('Verification code sent to your email', 'success');
                 }
             } catch (error) {
-                showMessage(error.message || 'An error occurred', 'error');
+                console.error('Error:', error); // Debug log
+                errorElement.textContent = error.message;
+                errorElement.classList.remove('hidden');
             }
         });
     </script>
