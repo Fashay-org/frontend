@@ -9,6 +9,7 @@ let selectedItems = new Map();
 let floatingChatUniqueId = null;
 let floatingChatTokenName = null;
 let modalContainer = null;
+
 // Stylist data
 let stylists = [
     {
@@ -2656,3 +2657,6 @@ function openFloatingChatWithSelection() {
     
     updateSelectedItemsDisplay();
 }
+
+
+

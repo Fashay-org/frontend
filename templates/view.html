@@ -79,61 +79,23 @@
 
     <!-- Tabs and Filters -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 mb-16">
-        <div class="border-b">
-            <!-- Tabs -->
-            <div class="flex">
-                <button onclick="switchTab('wardrobe')" class="tab-button flex-1 px-4 py-4 text-center font-medium transition-all duration-200 border-t-2 border-black min-w-[120px] flex items-center justify-center gap-2">
+        <div class="tab-container">
+            <button onclick="switchTab('wardrobe')" class="tab-button">
+                <div class="tab-button-content">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                     </svg>
-                    <span class="whitespace-nowrap">Wardrobe</span>
-                </button>
-                <button onclick="switchTab('shop')" class="tab-button flex-1 px-4 py-4 text-center font-medium transition-all duration-200 border-t-2 border-transparent text-gray-500 min-w-[120px] flex items-center justify-center gap-2">
+                    <span>Wardrobe</span>
+                </div>
+            </button>
+            <button onclick="switchTab('shop')" class="tab-button">
+                <div class="tab-button-content">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
                     </svg>
-                    <span class="whitespace-nowrap">Shop</span>
-                </button>
-            </div>
-
-            <!-- Filters (visible only in shop tab) -->
-            <div id="shopFilters" class="hidden py-4 border-t">
-                <div class="flex flex-wrap gap-4">
-                    <!-- Category Filter -->
-                    <select id="categoryFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
-                        <option value="">All Categories</option>
-                    </select>
-
-                    <!-- Brand Filter -->
-                    <select id="brandFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
-                        <option value="">All Brands</option>
-                    </select>
-
-                    <!-- Price Range Filter -->
-                    <div class="flex items-center gap-2">
-                        <input type="number" id="minPrice" placeholder="Min Price" onchange="applyFilters()" 
-                               class="px-4 py-2 border rounded-lg text-sm w-24">
-                        <span>-</span>
-                        <input type="number" id="maxPrice" placeholder="Max Price" onchange="applyFilters()" 
-                               class="px-4 py-2 border rounded-lg text-sm w-24">
-                    </div>
-
-                    <!-- Retailer Filter -->
-                    <select id="retailerFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
-                        <option value="">All Retailers</option>
-                        <option value="hm">H&M</option>
-                        <option value="amazon">Amazon</option>
-                    </select>
-
-                    <!-- Sort Options -->
-                    <select id="sortFilter" onchange="applyFilters()" class="px-4 py-2 border rounded-lg text-sm">
-                        <option value="created_at-desc">Newest First</option>
-                        <option value="created_at-asc">Oldest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                    </select>
+                    <span>Shop</span>
                 </div>
-            </div>
+            </button>
         </div>
 
         <!-- Content Sections -->
@@ -175,36 +137,10 @@
 
         <!-- Shop Section -->
         <div id="shopSection" class="hidden py-8">
-            <!-- Updated Filters Section -->
-            <div class="mb-6">
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <!-- Category Filter -->
-                    <select id="categoryFilter" class="filter-control px-4 py-2 border rounded-lg">
-                        <option value="">All Categories</option>
-                    </select>
-
-                    <!-- Brand Filter -->
-                    <select id="brandFilter" class="filter-control px-4 py-2 border rounded-lg">
-                        <option value="">All Brands</option>
-                    </select>
-
-                    <!-- Sort By -->
-                    <select id="sortBy" class="filter-control px-4 py-2 border rounded-lg">
-                        <option value="created_at">Latest</option>
-                        <option value="price">Price</option>
-                        <option value="name">Name</option>
-                    </select>
-
-                    <!-- Sort Order -->
-                    <select id="sortOrder" class="filter-control px-4 py-2 border rounded-lg">
-                        <option value="desc">Descending</option>
-                        <option value="asc">Ascending</option>
-                    </select>
-                </div>
-            </div>
-
             <!-- Products Container -->
-            <div id="productsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            <div id="productsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Products will be dynamically added here -->
+            </div>
 
             <!-- Pagination -->
             <div id="pagination" class="mt-8 flex justify-center items-center gap-4"></div>
