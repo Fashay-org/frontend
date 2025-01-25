@@ -94,16 +94,19 @@ background-color: rgba(0, 0, 0, 0.02);
     transition: opacity 0.2s ease;
     width: 100%;
     min-width: 100%; /* Changed from 100vw to prevent horizontal scroll */
+    min-height: 60vh;
 }
 #productsContainer {
-    min-width: 100%;
+    min-width: 100vw;
+    min-height: 60vh;
 }
 .grid-cols-1 {
-    min-width: 100%;
+    min-width: 100vw;
+    min-height: 60vh;
 }
 .grid.grid-cols-1 {
     min-width: 100%;
-    min-height: auto;
+    min-height: 1500px;
 }
 #wardrobeSection.hidden,
 #shopSection.hidden {
