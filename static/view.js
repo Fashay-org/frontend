@@ -278,7 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeMobileMenu();
 });
 async function refreshFloatingStylist() {
-    // Show typing indicator
     document.getElementById("floatingTypingIndicator").classList.remove("hidden");
     
     try {
@@ -295,15 +294,30 @@ async function refreshFloatingStylist() {
         });
 
         const data = await response.json();
+        console.log("Received response:", data); // Debug log
         
         if (response.ok && data.status === "success") {
             // Clear chat history
             floatingChatHistory = [];
             
-            // Add initial system message
+            // Parse the initial message if it's a string
+            let messageText;
+            if (data.data && data.data.initial_message) {
+                try {
+                    const parsedMessage = typeof data.data.initial_message === 'string' ? 
+                        JSON.parse(data.data.initial_message) : data.data.initial_message;
+                    messageText = parsedMessage.text;
+                } catch (e) {
+                    messageText = data.data.initial_message;
+                }
+            } else {
+                messageText = "Hello! How can I help you today?";
+            }
+            console.log("Initial message:", messageText); // Debug log
+            // Add to chat history
             floatingChatHistory.push({
                 type: "assistant",
-                text: data.initial_message
+                text: messageText
             });
             
             // Update chat view
@@ -312,11 +326,9 @@ async function refreshFloatingStylist() {
             // Show success message
             showMessage(data.message, "success");
         } else {
-            // Handle error responses
             const errorMessage = data.message || "Failed to refresh stylist";
             showMessage(errorMessage, "error");
             
-            // Add error message to chat
             floatingChatHistory.push({
                 type: "assistant",
                 text: "I apologize, but I encountered an error. Please try again."
@@ -327,18 +339,15 @@ async function refreshFloatingStylist() {
         console.error("Error refreshing stylist:", error);
         showMessage("Failed to refresh stylist", "error");
         
-        // Add error message to chat
         floatingChatHistory.push({
             type: "assistant",
             text: "I apologize, but I encountered an error. Please try again."
         });
         updateFloatingChatView();
     } finally {
-        // Hide typing indicator
         document.getElementById("floatingTypingIndicator").classList.add("hidden");
     }
 }
-
 // Add this function to handle gender selection and update
 async function updateGenderPreference(gender) {
     try {
