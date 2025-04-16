@@ -8,27 +8,52 @@ let currentTokenName = null;
 let selectedItems = new Map();
 let floatingChatUniqueId = null;
 let floatingChatTokenName = null;
+let modalContainer = null;
+
 // Stylist data
 let stylists = [
     {
         id: 'reginald',
         name: 'AI Reginald',
-        image: '/frontend/images/reginald.png',
+        image: '/static/images/reginald.png',
         bio: 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek...'
     },
     {
         id: 'eliza',
         name: 'AI Eliza',
-        image: '/frontend/images/eliza.png',
+        image: '/static/images/eliza.png',
         bio: 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist...'
     },
     {
         id: 'lilia',
         name: 'AI Lilia',
-        image: '/frontend/images/lilia.png',
+        image: '/static/images/lilia.png',
         bio: 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling...'
     }
 ];
+
+// Single function to initialize file input
+function initializeFileInput() {
+    const imageInput = document.getElementById('image');
+    if (!imageInput) return;
+    
+    // Remove any existing listeners
+    const newImageInput = imageInput.cloneNode(true);
+    imageInput.parentNode.replaceChild(newImageInput, imageInput);
+    
+    // Add single event listener
+    newImageInput.addEventListener('change', function(event) {
+        const container = document.getElementById('caption-thumbnails-container');
+        if (container) {
+            // Clear existing content first
+            container.innerHTML = '';
+            currentFiles.clear();
+            
+            displayMultipleThumbnails(container, this.files);
+        }
+    });
+}
+
 // Add listeners when DOM is loaded
 document.addEventListener("DOMContentLoaded", async function() {
     try {
@@ -51,6 +76,8 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
         arrangeStylistsByGender(gender);
         
+        // Initialize file input
+        initializeFileInput();        
         // Initialize floating chat
         await initializeFloatingChat();
         
@@ -64,7 +91,24 @@ document.addEventListener("DOMContentLoaded", async function() {
         console.error("Error in DOMContentLoaded:", error);
     }
 });
+document.addEventListener('DOMContentLoaded', function() {
+    // Form submit listener
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', handleFormSubmit);
+    }
 
+    // File input change listener
+    const imageInput = document.getElementById('image');
+    if (imageInput) {
+        imageInput.addEventListener('change', async function() {
+            await displayMultipleThumbnails(
+                document.getElementById('caption-thumbnails-container'),
+                this.files
+            );
+        });
+    }
+});
 function setupEventListeners() {
     // Upload button
     const uploadButton = document.querySelector('button[onclick="openUploadModal()"]');
@@ -93,13 +137,13 @@ function setupEventListeners() {
         });
     }
 
-    // File input listener
-    const imageInput = document.getElementById('image');
-    if (imageInput) {
-        imageInput.addEventListener('change', function() {
-            displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
-        });
-    }
+    // // File input listener
+    // const imageInput = document.getElementById('image');
+    // if (imageInput) {
+    //     imageInput.addEventListener('change', function() {
+    //         displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
+    //     });
+    // }
 
     // Form submit handler
     const uploadForm = document.getElementById('upload-form');
@@ -234,16 +278,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeMobileMenu();
 });
 async function refreshFloatingStylist() {
-    // Show typing indicator
     document.getElementById("floatingTypingIndicator").classList.remove("hidden");
     
     try {
         const response = await fetch("/refresh_stylist", {
             method: "POST",
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Type": "application/json"
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 stylist: floatingSelectedStylist.id
@@ -251,15 +294,30 @@ async function refreshFloatingStylist() {
         });
 
         const data = await response.json();
+        console.log("Received response:", data); // Debug log
         
         if (response.ok && data.status === "success") {
             // Clear chat history
             floatingChatHistory = [];
             
-            // Add initial system message
+            // Parse the initial message if it's a string
+            let messageText;
+            if (data.data && data.data.initial_message) {
+                try {
+                    const parsedMessage = typeof data.data.initial_message === 'string' ? 
+                        JSON.parse(data.data.initial_message) : data.data.initial_message;
+                    messageText = parsedMessage.text;
+                } catch (e) {
+                    messageText = data.data.initial_message;
+                }
+            } else {
+                messageText = "Hello! How can I help you today?";
+            }
+            console.log("Initial message:", messageText); // Debug log
+            // Add to chat history
             floatingChatHistory.push({
                 type: "assistant",
-                text: data.initial_message
+                text: messageText
             });
             
             // Update chat view
@@ -268,11 +326,9 @@ async function refreshFloatingStylist() {
             // Show success message
             showMessage(data.message, "success");
         } else {
-            // Handle error responses
             const errorMessage = data.message || "Failed to refresh stylist";
             showMessage(errorMessage, "error");
             
-            // Add error message to chat
             floatingChatHistory.push({
                 type: "assistant",
                 text: "I apologize, but I encountered an error. Please try again."
@@ -283,18 +339,15 @@ async function refreshFloatingStylist() {
         console.error("Error refreshing stylist:", error);
         showMessage("Failed to refresh stylist", "error");
         
-        // Add error message to chat
         floatingChatHistory.push({
             type: "assistant",
             text: "I apologize, but I encountered an error. Please try again."
         });
         updateFloatingChatView();
     } finally {
-        // Hide typing indicator
         document.getElementById("floatingTypingIndicator").classList.add("hidden");
     }
 }
-
 // Add this function to handle gender selection and update
 async function updateGenderPreference(gender) {
     try {
@@ -302,9 +355,9 @@ async function updateGenderPreference(gender) {
         const response = await fetch('/update_gender', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 gender: gender
@@ -386,12 +439,19 @@ async function uploadProfilePicture(input) {
                     document.head.appendChild(script);
                 });
             }
+            
             // Fix orientation
             const fixedFile = await fixImageOrientation(file);
-            const formData = new FormData();
-            formData.append('email', localStorage.getItem('wardrobeEmail'));
-            formData.append('password', localStorage.getItem('wardrobePassword'));
-            formData.append('image', fixedFile);
+            const base64File = await fileToBase64(fixedFile);
+            
+            // Create JSON request body with corrected field name
+            const requestBody = {
+                email: localStorage.getItem('wardrobeEmail'),
+                password: localStorage.getItem('wardrobePassword'),
+                image_data: base64File.includes('base64,') ? base64File.split('base64,')[1] : base64File,
+                filename: file.name,  // Changed from file_name to filename
+                content_type: file.type
+            };
 
             // Show loading state with modern spinner
             const profileContainer = document.querySelector('.text-center.fade-in');
@@ -413,7 +473,10 @@ async function uploadProfilePicture(input) {
 
             const response = await fetch('/upload_profile_picture', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
             });
 
             const result = await response.json();
@@ -434,19 +497,28 @@ async function uploadProfilePicture(input) {
             }, 1000);
         }
     }
-}    
+}
+// Update openUploadModal to reinitialize the file input
 function openUploadModal() {
     const modal = document.getElementById('uploadModal');
     const generateButton = document.getElementById('generateButton');
     if (modal && generateButton) {
         modal.classList.remove('hidden');
         generateButton.classList.add('hidden');
+        
         // Reset form
         const form = document.getElementById('upload-form');
         if (form) form.reset();
+        
         // Clear thumbnails
         const container = document.getElementById('caption-thumbnails-container');
-        if (container) container.innerHTML = '';
+        if (container) {
+            container.innerHTML = '';
+            currentFiles.clear();
+        }
+        
+        // Reinitialize file input
+        initializeFileInput();
     }
 }
 
@@ -479,8 +551,16 @@ async function displayMultipleThumbnails(container, files) {
     container.innerHTML = '';
     currentFiles.clear();
     
+    const processedFiles = new Set();
     for (let index = 0; index < files.length; index++) {
         const file = files[index];
+        // Skip if we've already processed this file
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        if (processedFiles.has(fileKey)) {
+            console.log('Skipping duplicate file:', file.name);
+            continue;
+        }
+        processedFiles.add(fileKey);
         try {
             // Fix orientation first
             const fixedFile = await fixImageOrientation(file);
@@ -539,92 +619,261 @@ async function displayMultipleThumbnails(container, files) {
 document.getElementById('image').addEventListener('change', async function() {
     await displayMultipleThumbnails(document.getElementById('caption-thumbnails-container'), this.files);
 });
-
-// Update the form submit handler
-document.getElementById('upload-form')?.addEventListener('submit', async function(event) {
+// Helper function to convert File to base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = reject;
+    });
+}
+// Updated form submit handler for JSON submission
+async function handleFormSubmit(event) {
     event.preventDefault();
     
-    const form = this;
-    const thumbnailsContainer = document.getElementById('caption-thumbnails-container');
-    const visibleThumbnails = thumbnailsContainer.querySelectorAll('[data-file-id]');
-    
-    if (visibleThumbnails.length === 0) {
+    const email = localStorage.getItem('wardrobeEmail');
+    const password = localStorage.getItem('wardrobePassword');
+    const files = Array.from(currentFiles.values());
+
+    if (files.length === 0) {
         showMessage('Please select at least one image', 'error');
         return;
     }
-    
-    form.classList.add('loading');
-    const button = form.querySelector('button[type="submit"]');
-    const originalButtonText = button.textContent;
+
+    const button = event.target.querySelector('button[type="submit"]');
+    const originalText = button.textContent;
     button.textContent = 'Processing...';
-    
+    button.disabled = true;
+
+    const gridContainer = document.querySelector('.grid');
+    const placeholderCards = new Map();
+    const uploadedCards = new Map();
+
     try {
-        const email = localStorage.getItem('wardrobeEmail');
-        const password = localStorage.getItem('wardrobePassword');
-        
-        for (const thumbnail of visibleThumbnails) {
-            const fileId = thumbnail.dataset.fileId;
-            const file = currentFiles.get(fileId);
-            
-            if (!file) continue;
-            
+        // Create placeholders for each image immediately
+        files.forEach(file => {
             const tokenName = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const formData = new FormData();
-            formData.append('email', email);
-            formData.append('password', password);
-            formData.append('token_name', tokenName);
-            formData.append('image', file);
+            const placeholderCard = createLoadingPlaceholder(file, tokenName);
+            gridContainer.insertBefore(placeholderCard, gridContainer.firstChild);
+            placeholderCards.set(tokenName, { card: placeholderCard, file });
+        });
 
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
+        // Process each image sequentially to ensure all captions are generated
+        for (const [tokenName, { card: placeholderCard, file }] of placeholderCards) {
+            try {
+                // Convert file to base64
+                const base64Image = await fileToBase64(file);
 
-            const result = await response.json();
-            
-            if (result.status === 'success') {
-                const gridContainer = document.querySelector('.grid');
-                const newItem = createItemCard({
-                    ...result,
+                // Create request body for this specific image
+                const requestBody = {
+                    email,
+                    password,
                     token_name: tokenName,
-                    unique_id: result.unique_id || tokenName
+                    image: base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image
+                };
+
+                // Upload individual image
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
                 });
-                gridContainer.insertBefore(newItem, gridContainer.firstChild);
-                newItem.classList.add('slide-in-right');
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Upload failed');
+                }
+
+                const uploadResult = await response.json();
+
+                if (uploadResult.status === 'success') {
+                    // Create and add the actual card with animation
+                    const newItem = createItemCard({
+                        token_name: tokenName,
+                        image_url: uploadResult.image_url,
+                        caption: uploadResult.caption,
+                        unique_id: uploadResult.unique_id
+                    });
+
+                    newItem.style.opacity = '0';
+                    newItem.style.transform = 'translateY(20px)';
+                    placeholderCard.replaceWith(newItem);
+
+                    requestAnimationFrame(() => {
+                        newItem.style.transition = 'all 0.3s ease-out';
+                        newItem.style.opacity = '1';
+                        newItem.style.transform = 'translateY(0)';
+                    });
+
+                    uploadedCards.set(tokenName, uploadResult);
+                }
+            } catch (error) {
+                console.error(`Error uploading image with token ${tokenName}:`, error);
+                placeholderCard.remove();
+                showMessage(`Failed to upload image: ${error.message}`, 'error');
             }
         }
-        
-        // Clear form and close modal
-        currentFiles.clear();
-        document.getElementById('image').value = '';
-        thumbnailsContainer.innerHTML = '';
-        closeUploadModal();
-        showMessage(`Successfully uploaded ${visibleThumbnails.length} images`, 'success');
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showMessage('An error occurred during upload', 'error');
-    } finally {
-        form.classList.remove('loading');
-        button.textContent = originalButtonText;
-    }
-});
 
-// Update the createItemCard function to ensure unique IDs are properly set
+        // Show success message based on number of successful uploads
+        const successCount = uploadedCards.size;
+        if (successCount > 0) {
+            showMessage(`Successfully uploaded ${successCount} image${successCount > 1 ? 's' : ''}`, 'success');
+            closeUploadModal();
+        }
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        showMessage(error.message || 'Failed to upload images', 'error');
+        // Remove any remaining placeholders
+        placeholderCards.forEach(({card}) => card.remove());
+    } finally {
+        button.textContent = originalText;
+        button.disabled = false;
+        document.getElementById('image').value = '';
+        currentFiles.clear();
+    }
+}
+
+// Create loading placeholder card
+function createLoadingPlaceholder(file, tokenName) {
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl overflow-hidden shadow-lg hover-scale';
+    div.dataset.token = tokenName;
+    
+    // Create object URL for immediate image preview
+    const imageUrl = URL.createObjectURL(file);
+    
+    div.innerHTML = `
+        <div class="relative">
+            <div class="relative">
+                <img src="${imageUrl}" alt="Uploading..." class="w-full h-72 object-cover filter blur-sm">
+                <div class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+                    <div class="loading-spinner">
+                        <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-5">
+            <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+        </div>
+    `;
+    
+    // Clean up object URL when placeholder is removed
+    div.addEventListener('remove', () => URL.revokeObjectURL(imageUrl));
+    
+    return div;
+}
+// // Update the form submit handler
+// document.getElementById('upload-form')?.addEventListener('submit', async function(event) {
+//     event.preventDefault();
+    
+//     const form = this;
+//     const thumbnailsContainer = document.getElementById('caption-thumbnails-container');
+//     const visibleThumbnails = thumbnailsContainer.querySelectorAll('[data-file-id]');
+    
+//     if (visibleThumbnails.length === 0) {
+//         showMessage('Please select at least one image', 'error');
+//         return;
+//     }
+    
+//     form.classList.add('loading');
+//     const button = form.querySelector('button[type="submit"]');
+//     const originalButtonText = button.textContent;
+//     button.textContent = 'Processing...';
+    
+//     try {
+//         const email = localStorage.getItem('wardrobeEmail');
+//         const password = localStorage.getItem('wardrobePassword');
+        
+//         for (const thumbnail of visibleThumbnails) {
+//             const fileId = thumbnail.dataset.fileId;
+//             const file = currentFiles.get(fileId);
+            
+//             if (!file) continue;
+            
+//             const tokenName = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+//             // Convert file to base64
+//             const base64File = await fileToBase64(file);
+            
+//             // Create JSON request body
+//             const requestBody = {
+//                 email: email,
+//                 password: password,
+//                 token_name: tokenName,
+//                 image_data: base64File.includes('base64,') ? base64File.split('base64,')[1] : base64File,
+//                 file_name: file.name,
+//                 content_type: file.type
+//             };
+
+//             const response = await fetch('/upload', {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json'
+//                 },
+//                 body: JSON.stringify(requestBody)
+//             });
+
+//             const result = await response.json();
+            
+//             if (result.status === 'success') {
+//                 const gridContainer = document.querySelector('.grid');
+//                 const newItem = createItemCard({
+//                     ...result,
+//                     token_name: tokenName,
+//                     unique_id: result.unique_id || tokenName
+//                 });
+//                 gridContainer.insertBefore(newItem, gridContainer.firstChild);
+//                 newItem.classList.add('slide-in-right');
+//             }
+//         }
+        
+//         // Clear form and close modal
+//         currentFiles.clear();
+//         document.getElementById('image').value = '';
+//         thumbnailsContainer.innerHTML = '';
+//         closeUploadModal();
+//         showMessage(`Successfully uploaded ${visibleThumbnails.length} images`, 'success');
+        
+//     } catch (error) {
+//         console.error('Error:', error);
+//         showMessage('An error occurred during upload', 'error');
+//     } finally {
+//         form.classList.remove('loading');
+//         button.textContent = originalButtonText;
+//     }
+// });
+
+// Update createItemCard for smoother transitions
 function createItemCard(result) {
     const div = document.createElement('div');
     div.className = 'bg-white rounded-2xl overflow-hidden shadow-lg hover-scale';
     div.dataset.token = result.token_name;
     
+    const caption = result.caption || result.image_caption || '';
+    const imageUrl = result.image_url;
+    const uniqueId = result.unique_id;
+    
     div.innerHTML = `
         <div class="relative">
-            <img src="${result.image_url}" alt="${result.token_name}" class="w-full h-72 object-cover">
+            <img src="${imageUrl}" alt="${caption}" class="w-full h-72 object-cover">
             <button 
                 onclick="toggleItemSelection({
-                    uniqueId: '${result.unique_id}',
+                    uniqueId: '${uniqueId}',
                     tokenName: '${result.token_name}',
-                    imageUrl: '${result.image_url}',
-                    caption: '${result.caption || result.image_caption}'
+                    imageUrl: '${imageUrl}',
+                    caption: '${caption.replace(/'/g, "\\'")}'
                 })"
                 class="absolute top-3 left-3 w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-md hover:bg-white hover:shadow-lg transition-all duration-300 select-item-btn z-10"
                 data-token="${result.token_name}"
@@ -639,7 +888,7 @@ function createItemCard(result) {
             </button>
         </div>
         <div class="p-5">
-            <p class="text-gray-800 text-lg font-medium leading-relaxed">${result.caption || result.image_caption}</p>
+            <p class="text-gray-800 text-lg font-medium leading-relaxed">${caption}</p>
         </div>
     `;
     
@@ -895,7 +1144,7 @@ function showStylistInfo(name, bio, contact, image) {
     document.getElementById("stylistName").textContent = name;
     document.getElementById("stylistBio").textContent = bio;
     document.getElementById("stylistContact").textContent = contact;
-    document.getElementById("stylistImage").src = `/frontend/images/${image}`;
+    document.getElementById("stylistImage").src = `/static/images/${image}`;
     document.getElementById("stylistInfoModal").classList.remove("hidden");
     closeAvatarModal(); // Close the avatar modal
 }
@@ -1019,7 +1268,7 @@ function showEmptyState() {
     document.querySelector('.grid').appendChild(emptyState);
 }
 // Updated delete function
-function deleteItem(token_name, itemElement) {
+async function deleteItem(token_name, itemElement) {
     const modal = document.getElementById('deleteModal') || createDeleteModal();
     modal.classList.remove('hidden');
 
@@ -1028,18 +1277,15 @@ function deleteItem(token_name, itemElement) {
 
     const handleDelete = async () => {
         modal.classList.add('hidden');
-        const email = localStorage.getItem('wardrobeEmail');
-        const password = localStorage.getItem('wardrobePassword');
-
         try {
             const response = await fetch(`/delete_item/${token_name}`, {
-                method: "POST",
+                method: 'DELETE',
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
+                    'Content-Type': 'application/json'
                 },
-                body: new URLSearchParams({
-                    email: email,
-                    password: password
+                body: JSON.stringify({
+                    email: localStorage.getItem('wardrobeEmail'),
+                    password: localStorage.getItem('wardrobePassword')
                 })
             });
 
@@ -1047,13 +1293,13 @@ function deleteItem(token_name, itemElement) {
             
             if (data.success) {
                 removeItemWithAnimation(itemElement);
-                showDeleteFeedback(true);
+                showMessage("Item deleted successfully", 'success');
             } else {
-                showDeleteFeedback(false);
+                showMessage(data.message || "Failed to delete item", 'error');
             }
         } catch (error) {
             console.error("Error:", error);
-            showDeleteFeedback(false);
+            showMessage("Failed to delete item", 'error');
         }
     };
 
@@ -1064,32 +1310,33 @@ function deleteItem(token_name, itemElement) {
     confirmBtn.addEventListener('click', handleDelete, { once: true });
     cancelBtn.addEventListener('click', handleCancel, { once: true });
 }
+
 function saveCaption(uniqueId, tokenName, newCaption) {
     fetch(`/edit_caption/${uniqueId}`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json"
         },
-        body: new URLSearchParams({
+        body: JSON.stringify({
             unique_id: uniqueId,
-            token_name: tokenName, // Include token name
+            token_name: tokenName,
             new_caption: newCaption,
             email: localStorage.getItem('wardrobeEmail'),
             password: localStorage.getItem('wardrobePassword')
         })
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage("Caption updated successfully.", "success");
-            } else {
-                showMessage("Failed to update caption.", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            showMessage("An error occurred.", "error");
-        });
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage("Caption updated successfully.", "success");
+        } else {
+            showMessage("Failed to update caption.", "error");
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        showMessage("An error occurred.", "error");
+    });
 }
 function filterStylists() {
     const searchInput = document.getElementById("stylistSearch").value.toLowerCase();
@@ -1284,29 +1531,29 @@ function arrangeStylistsByGender(gender) {
         // Define stylist HTML strings with the actual content
         const reginaldHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Reginald', 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek, is a personal stylist dedicated to helping clients elevate their style and confidence. With services like private consultations, closet audits, and curated shopping experiences, he offers a tailored approach to fashion. Reginald believes that clothing is currency and teaches clients to invest in timeless, high-quality pieces that reflect their unique identity. His mission is to transform individuals into their best selves, making style effortless and empowering.', 'reg@nyfashiongeek.com', 'reginald.png')">
-                <img src="/frontend/images/reginald.png" alt="Reginald" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/reginald.png" alt="Reginald" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Reginald</span>
             </div>
         `;
         
         const elizaHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Eliza', 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist with expertise in designer, couture, and vintage clothing. With experience at top fashion houses like Bergdorf Goodman, Saks Fifth Avenue, and Louis Vuitton, Eliza helps clients find their signature style through curated wardrobes and her popular Wardrobe Remix service. She also hosts the Wardrobe Boss podcast, sharing her passion for empowering confidence through fashion.', 'support@ba536d85-492f-45fb-a195-b4b002d8804a.mail.conversations.godaddy.com', 'eliza.png')">
-                <img src="/frontend/images/eliza.png" alt="Eliza" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/eliza.png" alt="Eliza" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Eliza</span>
             </div>
         `;
         
         const liliaHTML = `
             <div class="cursor-pointer p-3 rounded-lg hover:bg-gray-100" onclick="showStylistInfo('Lilia', 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling that celebrates individual body shapes with elegance and confidence. Known for her 4 Body Shape Guide, she helps clients find flattering styles and create wardrobes that reflect their unique identities. Lilia offers a range of services, from closet revamps to bridal styling, all aimed at empowering clients to embrace their best selves.', 'LiliBellestyle@gmail.com', 'lilia.png')">
-                <img src="/frontend/images/lilia.png" alt="Lilia" class="style-assistant-img inline-block mr-3">
+                <img src="/static/images/lilia.png" alt="Lilia" class="style-assistant-img inline-block mr-3">
                 <span class="text-gray-900 font-semibold">AI Lilia</span>
             </div>
         `;
 
         // Arrange stylists based on gender with smooth transition
-        if (gender === "man" || gender === "Man") {
+        if (gender === "men" || gender === "Men") {
             stylistList.innerHTML = reginaldHTML + elizaHTML + liliaHTML;
-        } else if (gender === "woman" || gender === "Woman") {
+        } else if (gender === "women" || gender === "Women") {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
         } else {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
@@ -1353,8 +1600,8 @@ async function initializeFloatingChat() {
                 </button>
                 <div id="genderDropdown" class="absolute z-50 hidden w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
                     <div class="max-h-48 overflow-auto">
-                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="man">Man</button>
-                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="woman">Woman</button>
+                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="men">Men</button>
+                        <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="women">Women</button>
                         <button type="button" class="w-full px-4 py-2 text-left hover:bg-gray-100" data-value="other">Other</button>
                     </div>
                 </div>
@@ -1415,7 +1662,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Reginald', 'Reginald Ferguson, also known as (The Bro) and owner of New York Fashion Geek, is a personal stylist dedicated to helping clients elevate their style and confidence. With services like private consultations, closet audits, and curated shopping experiences, he offers a tailored approach to fashion. Reginald believes that clothing is currency and teaches clients to invest in timeless, high-quality pieces that reflect their unique identity. His mission is to transform individuals into their best selves, making style effortless and empowering.', 'reg@nyfashiongeek.com', 'reginald.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/reginald.png" alt="Reginald" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/reginald.png" alt="Reginald" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1441,7 +1688,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Eliza', 'Eliza Parrilla, the Wardrobe Boss, is a seasoned personal stylist with expertise in designer, couture, and vintage clothing. With experience at top fashion houses like Bergdorf Goodman, Saks Fifth Avenue, and Louis Vuitton, Eliza helps clients find their signature style through curated wardrobes and her popular Wardrobe Remix service. She also hosts the Wardrobe Boss podcast, sharing her passion for empowering confidence through fashion.', 'support@ba536d85-492f-45fb-a195-b4b002d8804a.mail.conversations.godaddy.com', 'eliza.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/eliza.png" alt="Eliza" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/eliza.png" alt="Eliza" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-pink-500 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1467,7 +1714,7 @@ function arrangeFloatingStylistsByGender(gender) {
                 onclick="showFloatingStylistInfo('Lilia', 'Lilia Dolinsky, founder of LiliBelle, specializes in personal styling that celebrates individual body shapes with elegance and confidence. Known for her 4 Body Shape Guide, she helps clients find flattering styles and create wardrobes that reflect their unique identities. Lilia offers a range of services, from closet revamps to bridal styling, all aimed at empowering clients to embrace their best selves.', 'LiliBellestyle@gmail.com', 'lilia.png')">
                 <div class="flex items-start gap-4 sm:gap-6">
                     <div class="relative shrink-0">
-                        <img src="/frontend/images/lilia.png" alt="Lilia" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
+                        <img src="/static/images/lilia.png" alt="Lilia" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md">
                         <div class="absolute -bottom-2 -right-2 bg-purple-500 rounded-full p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1488,9 +1735,9 @@ function arrangeFloatingStylistsByGender(gender) {
             </div>
         `;
 
-        if (gender === "man" || gender === "Man") {
+        if (gender === "men" || gender === "Men") {
             stylistList.innerHTML = reginaldHTML + elizaHTML + liliaHTML;
-        } else if (gender === "woman" || gender === "Woman") {
+        } else if (gender === "women" || gender === "Women") {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
         } else {
             stylistList.innerHTML = elizaHTML + liliaHTML + reginaldHTML;
@@ -1512,7 +1759,7 @@ function showFloatingStylistInfo(name, bio, contact, image) {
     // Update header with stylist info
     const stylistInfo = document.getElementById('selectedStylistInfo');
     stylistInfo.classList.remove('hidden');
-    stylistInfo.querySelector('img').src = `/frontend/images/${image}`;
+    stylistInfo.querySelector('img').src = `/static/images/${image}`;
     stylistInfo.querySelector('h3').textContent = `AI ${name}`;
     
     // Hide selection view, show chat view
@@ -1524,7 +1771,7 @@ function showFloatingStylistInfo(name, bio, contact, image) {
     floatingSelectedStylist = {
         id: stylistId,
         name: `AI ${name}`,
-        image: `/frontend/images/${image}`
+        image: `/static/images/${image}`
     };
     
     // Add welcome message
@@ -1769,9 +2016,9 @@ async function updateFloatingGenderPreference(gender) {
         const response = await fetch('/update_gender', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
+            body: JSON.stringify({
                 email: localStorage.getItem('wardrobeEmail'),
                 password: localStorage.getItem('wardrobePassword'),
                 gender: gender
@@ -1780,7 +2027,7 @@ async function updateFloatingGenderPreference(gender) {
 
         const result = await response.json();
 
-        if (result.success) {
+        if (result.status === 'success') {
             showMessage('Gender preference updated successfully', 'success');
             arrangeFloatingStylistsByGender(gender);
         } else {
@@ -1790,6 +2037,20 @@ async function updateFloatingGenderPreference(gender) {
         console.error('Error updating gender:', error);
         showMessage('An error occurred while updating gender preference', 'error');
     }
+}
+// Utility function to update UI elements
+function updateUIAfterAction(action, status, message) {
+    showMessage(message, status === 'success' ? 'success' : 'error');
+    if (status === 'success') {
+        // Additional UI updates can be added here
+        if (action === 'upload') {
+            document.getElementById('uploadModal')?.classList.add('hidden');
+        }
+    }
+}
+// Helper function to check if a file is an image
+function isImageFile(file) {
+    return file && file.type.startsWith('image/');
 }
 
 function toggleFloatingChat() {
@@ -1879,6 +2140,7 @@ function selectFloatingStylist(stylistId) {
     });
     updateFloatingChatView();
 }
+// Updated handleFloatingChatSubmit function
 async function handleFloatingChatSubmit(event) {
     event.preventDefault();
     const input = document.getElementById('floatingChatInput');
@@ -1889,13 +2151,14 @@ async function handleFloatingChatSubmit(event) {
     // Get selected items
     const items = Array.from(selectedItems.values());
 
-    // Add user message with selected items' images
+    // Add user message to chat
     floatingChatHistory.push({ 
         type: 'user', 
         text: message,
         images: items.map(item => ({
+            image_id: item.tokenName,
             image_url: item.imageUrl,
-            caption: item.caption
+            token_name: item.tokenName
         }))
     });
     updateFloatingChatView();
@@ -1905,82 +2168,41 @@ async function handleFloatingChatSubmit(event) {
     document.getElementById('floatingTypingIndicator').classList.remove('hidden');
 
     try {
-        // Create FormData object
-        const formData = new FormData();
-        formData.append('input_text', message);
-        formData.append('email', localStorage.getItem('wardrobeEmail'));
-        formData.append('password', localStorage.getItem('wardrobePassword'));
-        formData.append('stylist', floatingSelectedStylist.id);
+        const requestBody = {
+            input_text: message,
+            email: localStorage.getItem('wardrobeEmail'),
+            password: localStorage.getItem('wardrobePassword'),
+            stylist: floatingSelectedStylist.id,
+            token_name: items.length > 0 ? items[0].tokenName : 'general_chat'
+        };
 
-        // Get all selected items
-        const items = Array.from(selectedItems.values());
-        
-        if (items.length > 0) {
-            // If there's only one item selected
-            if (items.length === 1) {
-                formData.append('unique_id', items[0].uniqueId);
-                formData.append('token_name', items[0].tokenName);
-                console.log("Sending single item:", { 
-                    uniqueId: items[0].uniqueId, 
-                    tokenName: items[0].tokenName 
-                });
-            } 
-            // If there are multiple items selected
-            else if (items.length === 2) {
-                formData.append('unique_id', items[0].uniqueId);
-                formData.append('token_name', items[0].tokenName);
-                // Add the second item with a "2" suffix
-                formData.append('unique_id2', items[1].uniqueId);
-                formData.append('token_name2', items[1].tokenName);
-                console.log("Sending multiple items:", { 
-                    item1: { uniqueId: items[0].uniqueId, tokenName: items[0].tokenName },
-                    item2: { uniqueId: items[1].uniqueId, tokenName: items[1].tokenName }
-                });
-            }
-        } else {
-            // If no items selected, use general chat
-            formData.append('unique_id', 'general_chat');
-            formData.append('token_name', 'general_chat');
-            console.log("Sending general chat");
-        }
-
-        // Send request to backend
         const response = await fetch("/chat", {
             method: "POST",
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
-        console.log("Received chat response:", data);
         
         // Hide typing indicator
         document.getElementById('floatingTypingIndicator').classList.add('hidden');
 
-        if (data.error) {
-            throw new Error(data.error);
-        }
-
-        // Prepare images array combining selected items and response images
-        const selectedItemImages = items.map(item => ({
-            image_url: item.imageUrl,
-            caption: item.caption || ''
-        }));
-
-        const responseImages = data.images || [];
-        const uniqueSelectedImages = selectedItemImages.filter(selectedImg => 
-            !responseImages.some(responseImg => responseImg.image_url === selectedImg.image_url)
-        );                
-        // Add assistant message with all images
-        floatingChatHistory.push({
+        // Create assistant message with all response components
+        const assistantMessage = {
             type: 'assistant',
             text: data.reply,
-            images: [...uniqueSelectedImages, ...responseImages]
-        });
+            images: data.images || [],
+            recommendations: data.recommendations,
+            shopping_analysis: data.shopping_analysis
+        };
         
+        floatingChatHistory.push(assistantMessage);
         updateFloatingChatView();
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Chat error:", error);
         document.getElementById('floatingTypingIndicator').classList.add('hidden');
         
         floatingChatHistory.push({
@@ -1989,12 +2211,296 @@ async function handleFloatingChatSubmit(event) {
             images: []
         });
         updateFloatingChatView();
-        
         showMessage("Failed to send message", "error");
     }
 }
 
-// Update updateFloatingChatView function to properly display images
+
+function createProductGallery(products) {
+    // Create gallery container
+    const gallery = document.createElement('div');
+    gallery.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4';
+
+    // Create gallery items
+    products.forEach(product => {
+        if (product.image_urls && product.image_urls.length > 0) {
+            const imageCard = document.createElement('div');
+            imageCard.className = 'relative aspect-square rounded-xl overflow-hidden cursor-pointer group';
+            
+            const img = document.createElement('img');
+            img.src = product.image_urls[0];
+            img.className = 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-105';
+            
+            // Overlay with product name
+            const overlay = document.createElement('div');
+            overlay.className = 'absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300';
+            
+            const name = document.createElement('div');
+            name.className = 'absolute bottom-0 left-0 right-0 p-4 text-white text-sm font-medium';
+            name.textContent = product.product_text.split('.')[0].trim();
+            
+            overlay.appendChild(name);
+            imageCard.appendChild(img);
+            imageCard.appendChild(overlay);
+            
+            // Click handler to show modal
+            imageCard.onclick = () => showProductModal(product);
+            
+            gallery.appendChild(imageCard);
+        }
+    });
+
+    return gallery;
+}
+
+function createModal() {
+    if (modalContainer) return modalContainer;
+
+    modalContainer = document.createElement('div');
+    modalContainer.className = 'fixed inset-0 z-50 hidden';
+    modalContainer.innerHTML = `
+        <div class="fixed inset-0 bg-black/60" aria-hidden="true"></div>
+        <div class="fixed inset-0 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative bg-white w-full max-w-lg rounded-lg">
+                    <!-- Close button -->
+                    <button class="modal-close absolute right-4 top-4 z-10 p-1">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+
+                    <!-- Image Gallery -->
+                    <div class="relative">
+                        <div class="aspect-square w-full relative overflow-hidden" id="modalImageContainer">
+                            <div id="modalImageGallery" class="absolute inset-0"></div>
+                            
+                            <!-- Navigation Areas -->
+                            <div class="absolute inset-y-0 left-0 w-1/2 cursor-pointer" id="prevImageArea"></div>
+                            <div class="absolute inset-y-0 right-0 w-1/2 cursor-pointer" id="nextImageArea"></div>
+                            
+                            <!-- Image Counter -->
+                            <div class="absolute left-4 top-4 bg-gray-100 rounded-full px-2.5 py-1 text-xs">
+                                <span id="currentImageIndex">1</span>/<span id="totalImages">1</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Info -->
+                    <div class="p-6 space-y-6">
+                        <!-- Product Name & Price -->
+                        <div class="flex items-start justify-between gap-4">
+                            <h2 class="text-base text-gray-900 leading-normal" id="modalProductName"></h2>
+                            <div class="text-base text-gray-900" id="modalProductPrice"></div>
+                        </div>
+
+                        <!-- Brand -->
+                        <div class="text-sm text-gray-500 uppercase">
+                            By <span id="modalProductRetailer"></span>
+                        </div>
+
+                        <!-- Styling Tips -->
+                        <div class="space-y-2">
+                            <h3 class="text-sm uppercase text-gray-500">Styling Suggestions</h3>
+                            <ul class="space-y-2 text-sm text-gray-600" id="modalStylingTips"></ul>
+                        </div>
+
+                        <!-- View Product Button -->
+                        <a id="modalProductLink" target="_blank" 
+                        class="group inline-flex w-full items-center justify-between bg-black text-white px-6 py-4 text-sm font-medium hover:opacity-90 transition-all rounded-md">
+                            <span>View Product</span>
+                            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalContainer);
+    return modalContainer;
+}
+
+function showProductModal(product) {
+    const modal = createModal();
+    let currentImageIndex = 0;
+    let touchStartX = 0;
+    let imagesLoaded = new Set();
+    
+    const gallery = modal.querySelector('#modalImageGallery');
+    const imageContainer = modal.querySelector('#modalImageContainer');
+    const name = modal.querySelector('#modalProductName');
+    const retailer = modal.querySelector('#modalProductRetailer');
+    const price = modal.querySelector('#modalProductPrice');
+    const tipsList = modal.querySelector('#modalStylingTips');
+    const productLink = modal.querySelector('#modalProductLink');
+    const currentIndexEl = modal.querySelector('#currentImageIndex');
+    const totalImagesEl = modal.querySelector('#totalImages');
+    const prevArea = modal.querySelector('#prevImageArea');
+    const nextArea = modal.querySelector('#nextImageArea');
+
+    // Preload images
+    function preloadImage(url) {
+        if (imagesLoaded.has(url)) return Promise.resolve();
+        
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                imagesLoaded.add(url);
+                resolve();
+            };
+            img.onerror = reject;
+            img.src = url;
+        });
+    }
+    
+    // Update image display
+    async function updateImage(index, direction = 'next') {
+        if (index < 0 || index >= product.image_urls.length) return;
+        
+        const url = product.image_urls[index];
+        await preloadImage(url);
+        
+        currentImageIndex = index;
+        
+        // Create new image
+        const newImage = document.createElement('div');
+        newImage.className = 'absolute inset-0 transition-transform duration-300';
+        newImage.innerHTML = `
+            <img src="${url}" alt="${product.product_text}" 
+                 class="w-full h-full object-cover">
+        `;
+        
+        // Position new image
+        newImage.style.transform = direction === 'next' ? 'translateX(100%)' : 'translateX(-100%)';
+        gallery.appendChild(newImage);
+        
+        // Trigger slide animation
+        requestAnimationFrame(() => {
+            const currentImage = gallery.querySelector('.current-image');
+            if (currentImage) {
+                currentImage.style.transform = direction === 'next' ? 'translateX(-100%)' : 'translateX(100%)';
+                currentImage.addEventListener('transitionend', () => currentImage.remove(), { once: true });
+            }
+            
+            newImage.style.transform = 'translateX(0)';
+            newImage.classList.add('current-image');
+        });
+        
+        // Update counter and navigation
+        currentIndexEl.textContent = currentImageIndex + 1;
+        updateNavigation();
+    }
+    
+    function updateNavigation() {
+        prevArea.style.cursor = currentImageIndex > 0 ? 'pointer' : 'default';
+        nextArea.style.cursor = currentImageIndex < product.image_urls.length - 1 ? 'pointer' : 'default';
+    }
+    
+    // Setup image navigation
+    if (product.image_urls && product.image_urls.length > 0) {
+        totalImagesEl.textContent = product.image_urls.length;
+        updateImage(0);
+        
+        // Click navigation
+        prevArea.onclick = () => {
+            if (currentImageIndex > 0) {
+                updateImage(currentImageIndex - 1, 'prev');
+            }
+        };
+        
+        nextArea.onclick = () => {
+            if (currentImageIndex < product.image_urls.length - 1) {
+                updateImage(currentImageIndex + 1, 'next');
+            }
+        };
+        
+        // Touch navigation
+        imageContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        
+        imageContainer.addEventListener('touchmove', (e) => {
+            if (!touchStartX) return;
+            
+            const touchEndX = e.touches[0].clientX;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentImageIndex < product.image_urls.length - 1) {
+                    updateImage(currentImageIndex + 1, 'next');
+                } else if (diff < 0 && currentImageIndex > 0) {
+                    updateImage(currentImageIndex - 1, 'prev');
+                }
+                touchStartX = null;
+            }
+        }, { passive: true });
+        
+        imageContainer.addEventListener('touchend', () => {
+            touchStartX = null;
+        }, { passive: true });
+    }
+    
+    // Set product details
+    name.textContent = product.product_text.split('.')[0];
+    retailer.textContent = product.brand || 'Not specified';
+    price.textContent = typeof product.price === 'number' ? 
+        `$${product.price.toFixed(2)}` : 
+        (product.price || 'Price not available');
+    
+    if (tipsList && product.styling_tips) {
+        tipsList.innerHTML = product.styling_tips.map(tip => 
+            `<li>${tip}</li>`
+        ).join('');
+    }
+    
+    if (productLink && product.url) {
+        productLink.href = product.url;
+    }
+
+    // Show modal and handle keyboard navigation
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyboard = (e) => {
+        if (e.key === 'ArrowLeft' && currentImageIndex > 0) {
+            updateImage(currentImageIndex - 1, 'prev');
+        }
+        if (e.key === 'ArrowRight' && currentImageIndex < product.image_urls.length - 1) {
+            updateImage(currentImageIndex + 1, 'next');
+        }
+        if (e.key === 'Escape') {
+            modal.querySelector('.modal-close').click();
+        }
+    };
+    document.addEventListener('keydown', handleKeyboard);
+
+    // Cleanup
+    modal.querySelector('.modal-close').onclick = () => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', handleKeyboard);
+    };
+}
+// Function to initialize the gallery
+function initializeProductGallery(products) {
+    const gallery = createProductGallery(products);
+    createModal(); // Create modal container once
+    return gallery;
+}
+// Initialize floating chat when page loads
+document.addEventListener('DOMContentLoaded', initializeFloatingChat);
+
+// Add event listener for Enter key in floating chat
+document.getElementById('floatingChatInput')?.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        handleFloatingChatSubmit(event);
+    }
+});
+
 function updateFloatingChatView() {
     const chatContainer = document.getElementById('floatingMessageContainer');
     chatContainer.innerHTML = '';
@@ -2004,6 +2510,7 @@ function updateFloatingChatView() {
         messageDiv.className = `flex items-start gap-2 mb-4 ${message.type === 'user' ? 'justify-end' : ''}`;
         
         if (message.type === 'assistant') {
+            // Add stylist avatar
             const avatarDiv = document.createElement('div');
             avatarDiv.className = 'flex-shrink-0';
             const avatar = document.createElement('img');
@@ -2016,43 +2523,121 @@ function updateFloatingChatView() {
         const messageBubble = document.createElement('div');
         messageBubble.className = `message-bubble ${message.type === 'user' ? 'user-message' : 'assistant-message'}`;
         
-        // Add text content
-        const textDiv = document.createElement('div');
-        textDiv.textContent = message.text;
-        messageBubble.appendChild(textDiv);
+        if (message.type === 'user') {
+            // User message section
+            const textDiv = document.createElement('div');
+            textDiv.textContent = message.text;
+            messageBubble.appendChild(textDiv);
 
-        // Add images if present
-        if (message.images && message.images.length > 0) {
-            console.log("Processing images:", message.images); // Debug log
-            
-            const imageContainer = document.createElement('div');
-            imageContainer.className = 'mt-2 flex flex-wrap gap-2';
-            
-            message.images.forEach(image => {
-                if (!image || !image.image_url) {
-                    console.warn("Invalid image data:", image);
-                    return;
+            // Add selected item images in a grid
+            if (message.images && message.images.length > 0) {
+                const imageGrid = document.createElement('div');
+                imageGrid.className = 'grid grid-cols-2 gap-2 mt-2';
+                
+                message.images.forEach(image => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'aspect-square rounded-lg overflow-hidden bg-gray-50';
+                    
+                    const img = document.createElement('img');
+                    img.src = image.image_url;
+                    img.className = 'w-full h-full object-cover';
+                    img.loading = 'lazy';
+                    
+                    imgWrapper.appendChild(img);
+                    imageGrid.appendChild(imgWrapper);
+                });
+                
+                messageBubble.appendChild(imageGrid);
+            }
+        } else {
+            // Assistant message section
+            if (message.text) {
+                const textDiv = document.createElement('div');
+                textDiv.className = 'text-gray-800 font-medium mb-4';
+                textDiv.textContent = message.text;
+                messageBubble.appendChild(textDiv);
+            }
+
+            // Display recommended wardrobe images
+            if (message.images && message.images.length > 0) {
+                const imageSection = document.createElement('div');
+                imageSection.className = 'mt-4 space-y-2';
+                
+                const imagesLabel = document.createElement('div');
+                imagesLabel.className = 'text-sm text-gray-500 font-medium';
+                imagesLabel.textContent = 'Recommended Items from Your Wardrobe:';
+                imageSection.appendChild(imagesLabel);
+                
+                const imageGrid = document.createElement('div');
+                imageGrid.className = 'grid grid-cols-3 gap-2';
+                
+                message.images.forEach(image => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'aspect-square rounded-lg overflow-hidden bg-gray-50 shadow-sm';
+                    
+                    const img = document.createElement('img');
+                    img.src = image.image_url;
+                    img.alt = image.token_name;
+                    img.className = 'w-full h-full object-cover hover:scale-105 transition-transform duration-300';
+                    img.loading = 'lazy';
+                    
+                    imgWrapper.appendChild(img);
+                    imageGrid.appendChild(imgWrapper);
+                });
+                
+                imageSection.appendChild(imageGrid);
+                messageBubble.appendChild(imageSection);
+            }
+
+            // Product recommendations section
+            if (message.recommendations && message.recommendations.products && 
+                message.recommendations.products.length > 0) {
+                
+                if (message.images && message.images.length > 0) {
+                    // Add a divider if we have both wardrobe images and product recommendations
+                    const divider = document.createElement('div');
+                    divider.className = 'my-4 border-t border-gray-200';
+                    messageBubble.appendChild(divider);
                 }
 
-                const imgWrapper = document.createElement('div');
-                imgWrapper.className = 'relative flex-shrink-0 w-32';
+                const recommendationsSection = document.createElement('div');
+                recommendationsSection.className = 'space-y-2';
                 
-                const imgElement = document.createElement('img');
-                imgElement.src = image.image_url;
-                imgElement.alt = image.caption || 'Chat image';
-                imgElement.className = 'w-full h-32 rounded-lg object-cover shadow-sm cursor-pointer hover:opacity-90 transition-opacity';
+                const recommendationsLabel = document.createElement('div');
+                recommendationsLabel.className = 'text-sm text-gray-500 font-medium';
+                recommendationsLabel.textContent = 'Suggested Products:';
+                recommendationsSection.appendChild(recommendationsLabel);
                 
-                // Add click handler to view full size
-                imgElement.onclick = () => {
-                    window.open(image.image_url, '_blank');
-                };
-                
-                imgWrapper.appendChild(imgElement);
-                imageContainer.appendChild(imgWrapper);
-            });
-            
-            if (imageContainer.children.length > 0) {
-                messageBubble.appendChild(imageContainer);
+                const productsGrid = document.createElement('div');
+                productsGrid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+
+                message.recommendations.products.forEach(product => {
+                    if (product.image_urls && product.image_urls.length > 0) {
+                        const productCard = document.createElement('div');
+                        productCard.className = 'relative aspect-square rounded-lg overflow-hidden bg-gray-50 cursor-pointer group';
+                        
+                        const img = document.createElement('img');
+                        img.src = product.image_urls[0];
+                        img.className = 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-105';
+                        
+                        const overlay = document.createElement('div');
+                        overlay.className = 'absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300';
+                        
+                        const name = document.createElement('div');
+                        name.className = 'absolute bottom-0 left-0 right-0 p-3 text-white text-sm font-medium';
+                        name.textContent = product.product_text.split('.')[0].trim();
+                        
+                        overlay.appendChild(name);
+                        productCard.appendChild(img);
+                        productCard.appendChild(overlay);
+                        
+                        productCard.onclick = () => showProductModal(product);
+                        productsGrid.appendChild(productCard);
+                    }
+                });
+
+                recommendationsSection.appendChild(productsGrid);
+                messageBubble.appendChild(recommendationsSection);
             }
         }
 
@@ -2066,17 +2651,6 @@ function updateFloatingChatView() {
         behavior: 'smooth'
     });
 }
-
-// Initialize floating chat when page loads
-document.addEventListener('DOMContentLoaded', initializeFloatingChat);
-
-// Add event listener for Enter key in floating chat
-document.getElementById('floatingChatInput')?.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        handleFloatingChatSubmit(event);
-    }
-});
 
 function openFloatingChatWithSelection() {
     if (selectedItems.size === 0) {
@@ -2092,3 +2666,6 @@ function openFloatingChatWithSelection() {
     
     updateSelectedItemsDisplay();
 }
+
+
+
